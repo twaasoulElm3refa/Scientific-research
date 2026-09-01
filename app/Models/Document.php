@@ -39,6 +39,36 @@ class Document extends Model
         return $this->belongsTo(Country::class);
     }
 
+    public function source(): BelongsTo
+    {
+        return $this->belongsTo(Source::class);
+    }
+
+    public function magazine(): BelongsTo
+    {
+        return $this->belongsTo(Magazine::class);
+    }
+
+    public function documentType(): BelongsTo
+    {
+        return $this->belongsTo(DocumentType::class);
+    }
+
+    public function languageRecord(): BelongsTo
+    {
+        return $this->belongsTo(Language::class, 'language_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function subcategory(): BelongsTo
+    {
+        return $this->belongsTo(Subcategory::class);
+    }
+
     public function authors(): BelongsToMany
     {
         return $this->belongsToMany(Author::class, 'document_authors')

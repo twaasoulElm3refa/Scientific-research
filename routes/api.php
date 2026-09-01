@@ -1,8 +1,24 @@
 <?php
 
+use App\Http\Controllers\api\admin\AuthController as AdminAuthController;
+use App\Http\Controllers\api\admin\DocumentController;
+use App\Http\Controllers\api\admin\DocumentLookupController;
 use App\Http\Controllers\api\auth\AuthController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+
+Route::prefix('admin')->group(function () {
+    Route::post('login', [AdminAuthController::class, 'login'])->middleware('throttle:5,1');
+
+    Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+        Route::get('me', [AdminAuthController::class, 'me']);
+        Route::post('logout', [AdminAuthController::class, 'logout']);
+        Route::get('documents/lookups/{type}', [DocumentLookupController::class, 'index']);
+        Route::post('documents/lookups/{type}', [DocumentLookupController::class, 'store'])
+            ->middleware('throttle:30,1');
+        Route::get('documents', [DocumentController::class, 'index']);
+        Route::post('documents', [DocumentController::class, 'store'])->middleware('throttle:10,1');
+    });
+});
 
 Route::prefix('v1')->group(function () {
 

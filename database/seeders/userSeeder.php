@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class userSeeder extends Seeder
@@ -35,7 +34,10 @@ class userSeeder extends Seeder
             ];
 
         foreach ($users as $user) {
-            User::create($user);
+            User::firstOrCreate(
+                ['email' => $user['email']],
+                $user + ['is_active' => true],
+            );
         }
     }
 }

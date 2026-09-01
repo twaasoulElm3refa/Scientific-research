@@ -35,5 +35,11 @@ return [
         ],
     ],
 
+    'google_drive' => [
+        'folder_id' => env('GOOGLE_DRIVE_FOLDER_ID'),
+        'max_file_size_mb' => env('GOOGLE_DRIVE_MAX_FILE_SIZE_MB', 25),
+        'service_account_json' => env('GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON'),
+        'shared_drive_id' => env('GOOGLE_DRIVE_SHARED_DRIVE_ID'),
+    ],
 
 ];

@@ -29,4 +29,9 @@ class Subcategory extends Model
     {
         return $this->hasMany(Specialization::class);
     }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
 }
