@@ -54,6 +54,11 @@ class User extends Authenticatable
         return $this->hasMany(Document::class);
     }
 
+    public function googleDriveConnections(): HasMany
+    {
+        return $this->hasMany(GoogleDriveConnection::class);
+    }
+
     /**
      * Get the identifier that will be stored in the subject claim of the JWT.
      *

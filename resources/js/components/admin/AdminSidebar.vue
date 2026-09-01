@@ -39,6 +39,11 @@
                     All Documents
                 </RouterLink>
             </div>
+
+            <RouterLink :to="{ name: 'admin.settings.google-drive' }" class="admin-sidebar__link">
+                <i class="bi bi-cloud-check-fill" aria-hidden="true"></i>
+                <span>Google Drive</span>
+            </RouterLink>
         </nav>
     </aside>
 </template>

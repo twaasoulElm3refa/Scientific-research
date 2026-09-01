@@ -11,6 +11,7 @@ const AdminLayout = () => import("../layouts/AdminLayout.vue");
 const AdminDashboard = () => import("../views/admin/Dashboard.vue");
 const AddDocument = () => import("../views/admin/documents/Create.vue");
 const AllDocuments = () => import("../views/admin/documents/Index.vue");
+const GoogleDriveSettings = () => import("../views/admin/settings/GoogleDrive.vue");
 
 const routes = [
     {
@@ -68,6 +69,11 @@ const routes = [
                 path: "documents",
                 name: "admin.documents.index",
                 component: AllDocuments,
+            },
+            {
+                path: "settings/google-drive",
+                name: "admin.settings.google-drive",
+                component: GoogleDriveSettings,
             },
         ],
     },

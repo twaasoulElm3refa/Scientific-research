@@ -11,7 +11,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use JsonException;
 
 class GoogleDriveService implements GoogleDrive
 {
@@ -19,7 +18,7 @@ class GoogleDriveService implements GoogleDrive
 
     private const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3';
 
-    private const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
+    public function __construct(private readonly GoogleDriveOAuthService $oauth) {}
 
     public function uploadFile(UploadedFile $file, string $displayName, CarbonInterface $folderDate): array
     {
@@ -42,7 +41,6 @@ class GoogleDriveService implements GoogleDrive
             ])
             ->post(self::DRIVE_UPLOAD_URL.'/files?'.http_build_query([
                 'uploadType' => 'resumable',
-                'supportsAllDrives' => 'true',
                 'fields' => 'id,name,mimeType,size,webViewLink,parents',
             ]), $metadata);
 
@@ -94,7 +92,7 @@ class GoogleDriveService implements GoogleDrive
     {
         $response = $this->authorizedRequest()
             ->timeout(60)
-            ->delete(self::DRIVE_API_URL.'/files/'.rawurlencode($fileId).'?supportsAllDrives=true');
+            ->delete(self::DRIVE_API_URL.'/files/'.rawurlencode($fileId));
 
         if ($response->failed() && $response->status() !== 404) {
             throw new GoogleDriveException('Google Drive could not delete the uploaded file.');
@@ -106,7 +104,6 @@ class GoogleDriveService implements GoogleDrive
         $response = $this->authorizedRequest()
             ->timeout(60)
             ->get(self::DRIVE_API_URL.'/files/'.rawurlencode($fileId), [
-                'supportsAllDrives' => 'true',
                 'fields' => 'id,name,mimeType,size,webViewLink,parents,trashed',
             ]);
 
@@ -122,26 +119,18 @@ class GoogleDriveService implements GoogleDrive
         $cacheKey = 'google-drive.folder.'.sha1($parentFolderId.'|'.$name);
 
         return Cache::remember($cacheKey, now()->addDays(30), function () use ($parentFolderId, $name) {
-            $params = [
-                'q' => sprintf(
-                    "mimeType = 'application/vnd.google-apps.folder' and name = '%s' and '%s' in parents and trashed = false",
-                    $this->escapeDriveQueryValue($name),
-                    $this->escapeDriveQueryValue($parentFolderId),
-                ),
-                'fields' => 'files(id,name)',
-                'pageSize' => 1,
-                'spaces' => 'drive',
-                'supportsAllDrives' => 'true',
-                'includeItemsFromAllDrives' => 'true',
-            ];
-
-            $sharedDriveId = $this->requiredConfig('shared_drive_id');
-            $params['corpora'] = 'drive';
-            $params['driveId'] = $sharedDriveId;
-
             $response = $this->authorizedRequest()
                 ->timeout(60)
-                ->get(self::DRIVE_API_URL.'/files', $params);
+                ->get(self::DRIVE_API_URL.'/files', [
+                    'q' => sprintf(
+                        "mimeType = 'application/vnd.google-apps.folder' and name = '%s' and '%s' in parents and trashed = false",
+                        $this->escapeDriveQueryValue($name),
+                        $this->escapeDriveQueryValue($parentFolderId),
+                    ),
+                    'fields' => 'files(id,name)',
+                    'pageSize' => 1,
+                    'spaces' => 'drive',
+                ]);
 
             if ($response->failed()) {
                 throw new GoogleDriveException('Google Drive folders could not be searched.');
@@ -155,7 +144,7 @@ class GoogleDriveService implements GoogleDrive
 
             $createResponse = $this->authorizedRequest()
                 ->timeout(60)
-                ->post(self::DRIVE_API_URL.'/files?supportsAllDrives=true', [
+                ->post(self::DRIVE_API_URL.'/files', [
                     'name' => $name,
                     'mimeType' => 'application/vnd.google-apps.folder',
                     'parents' => [$parentFolderId],
@@ -185,80 +174,7 @@ class GoogleDriveService implements GoogleDrive
     {
         return Http::acceptJson()
             ->asJson()
-            ->withToken($this->accessToken());
-    }
-
-    private function accessToken(): string
-    {
-        $credentials = $this->credentials();
-        $cacheKey = 'google-drive.service-account-token.'.sha1($credentials['client_email']);
-        $cachedToken = Cache::get($cacheKey);
-
-        if (is_string($cachedToken) && $cachedToken !== '') {
-            return $cachedToken;
-        }
-
-        $now = time();
-        $header = $this->base64UrlEncode(json_encode([
-            'alg' => 'RS256',
-            'typ' => 'JWT',
-        ], JSON_THROW_ON_ERROR));
-        $claims = $this->base64UrlEncode(json_encode([
-            'iss' => $credentials['client_email'],
-            'scope' => self::DRIVE_SCOPE,
-            'aud' => $credentials['token_uri'] ?? 'https://oauth2.googleapis.com/token',
-            'iat' => $now,
-            'exp' => $now + 3600,
-        ], JSON_THROW_ON_ERROR));
-        $unsignedToken = $header.'.'.$claims;
-
-        if (! openssl_sign($unsignedToken, $signature, $credentials['private_key'], OPENSSL_ALGO_SHA256)) {
-            throw new GoogleDriveException('The Google service-account token could not be signed.');
-        }
-
-        $assertion = $unsignedToken.'.'.$this->base64UrlEncode($signature);
-        $response = Http::asForm()->acceptJson()->timeout(30)->post(
-            $credentials['token_uri'] ?? 'https://oauth2.googleapis.com/token',
-            [
-                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                'assertion' => $assertion,
-            ],
-        );
-
-        $token = $response->json('access_token');
-
-        if ($response->failed() || ! is_string($token) || $token === '') {
-            throw new GoogleDriveException('Google service-account authentication failed.');
-        }
-
-        Cache::put($cacheKey, $token, max(60, ((int) $response->json('expires_in', 3600)) - 60));
-
-        return $token;
-    }
-
-    /**
-     * @return array{client_email: string, private_key: string, token_uri?: string}
-     */
-    private function credentials(): array
-    {
-        $configuredValue = $this->requiredConfig('service_account_json');
-        $json = is_file($configuredValue) ? file_get_contents($configuredValue) : $configuredValue;
-
-        if (! is_string($json) || $json === '') {
-            throw new GoogleDriveException('The Google service-account credential file could not be read.');
-        }
-
-        try {
-            $credentials = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            throw new GoogleDriveException('The Google service-account JSON is invalid.', 0, $exception);
-        }
-
-        if (! is_array($credentials) || empty($credentials['client_email']) || empty($credentials['private_key'])) {
-            throw new GoogleDriveException('The Google service-account credentials are incomplete.');
-        }
-
-        return $credentials;
+            ->withToken($this->oauth->accessToken());
     }
 
     private function requiredConfig(string $key): string
@@ -275,10 +191,5 @@ class GoogleDriveService implements GoogleDrive
     private function escapeDriveQueryValue(string $value): string
     {
         return str_replace(['\\', "'"], ['\\\\', "\\'"], $value);
-    }
-
-    private function base64UrlEncode(string $value): string
-    {
-        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
     }
 }

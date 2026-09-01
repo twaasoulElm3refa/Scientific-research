@@ -36,10 +36,12 @@ return [
     ],
 
     'google_drive' => [
+        'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
+        'redirect_uri' => env('GOOGLE_DRIVE_REDIRECT_URI'),
         'folder_id' => env('GOOGLE_DRIVE_FOLDER_ID'),
+        'scopes' => env('GOOGLE_DRIVE_SCOPES', 'https://www.googleapis.com/auth/drive'),
         'max_file_size_mb' => env('GOOGLE_DRIVE_MAX_FILE_SIZE_MB', 25),
-        'service_account_json' => env('GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON'),
-        'shared_drive_id' => env('GOOGLE_DRIVE_SHARED_DRIVE_ID'),
     ],
 
 ];
