@@ -2,45 +2,44 @@
 
 namespace Database\Seeders;
 
+use App\Models\DocumentType;
+use Database\Seeders\Concerns\SeedsLookupNames;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class DocumentTypeSeeder extends Seeder
 {
+    use SeedsLookupNames;
+
     public function run(): void
     {
-        $now = now();
-
         $types = [
-            ['name' => 'كتاب', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'بحث علمي', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'مقال علمي', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'ورقة بحثية', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'رسالة ماجستير', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'رسالة دكتوراه', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'رسالة جامعية', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'فصل من كتاب', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'ورقة مؤتمر', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'وقائع مؤتمر', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'دراسة', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'تقرير بحثي', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'تقرير علمي', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'ورقة عمل', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'مراجعة علمية', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'ورقة سياسات', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'موجز سياسات', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'مرجع علمي', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'موسوعة', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'دليل', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'عرض تقديمي', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'وثيقة أكاديمية', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'أخرى', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
+            'كتاب - Book',
+            'بحث علمي - Scientific research',
+            'مقال علمي - Scientific article',
+            'ورقة بحثية - Research paper',
+            'رسالة ماجستير - Master\'s thesis',
+            'رسالة دكتوراه - PhD thesis',
+            'رسالة جامعية - University thesis',
+            'فصل من كتاب - Chapter from a book',
+            'ورقة مؤتمر - Conference paper',
+            'وقائع مؤتمر - Conference proceedings',
+            'دراسة - Study',
+            'تقرير بحثي - Research report',
+            'تقرير علمي - Scientific report',
+            'ورقة عمل - Worksheet',
+            'مراجعة علمية - Scientific review',
+            'ورقة سياسات - Policy paper',
+            'موجز سياسات - Policy brief',
+            'مرجع علمي - Scientific reference',
+            'موسوعة - Encyclopedia',
+            'دليل - Evidence',
+            'عرض تقديمي - Presentation',
+            'وثيقة أكاديمية - Academic document',
+            'أخرى - Other',
         ];
 
-        DB::table('document_types')->upsert(
-            $types,
-            ['name'],
-            ['is_active', 'updated_at']
-        );
+        foreach ($types as $typeName) {
+            $this->seedLookup(DocumentType::class, $typeName);
+        }
     }
 }

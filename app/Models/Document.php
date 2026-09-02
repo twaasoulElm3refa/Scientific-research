@@ -64,6 +64,16 @@ class Document extends Model
         return $this->belongsTo(Category::class);
     }
 
+    public function licenseType(): BelongsTo
+    {
+        return $this->belongsTo(LicenseType::class);
+    }
+
+    public function rightsStatus(): BelongsTo
+    {
+        return $this->belongsTo(RightsStatus::class);
+    }
+
     public function subcategory(): BelongsTo
     {
         return $this->belongsTo(Subcategory::class);

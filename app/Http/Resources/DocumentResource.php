@@ -14,9 +14,13 @@ class DocumentResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'file_name' => $this->title,
+            'file_name' => $this->drive_file_name ?? $this->original_file_name ?? $this->title,
+            'title' => $this->title,
             'original_file_name' => $this->original_file_name,
             'doi' => $this->doi,
+            'isbn' => $this->isbn,
+            'issn' => $this->issn,
+            'url' => $this->url,
             'publish_year' => $this->publication_year,
             'publish_date' => $this->publication_date?->format('Y-m'),
             'pages_number' => $this->total_pages,
@@ -28,6 +32,8 @@ class DocumentResource extends JsonResource
             'subcategory' => $this->whenLoaded('subcategory', fn () => $this->lookup($this->subcategory)),
             'specialization' => $this->whenLoaded('specialization', fn () => $this->lookup($this->specialization)),
             'country' => $this->whenLoaded('country', fn () => $this->lookup($this->country, true)),
+            'license_type' => $this->whenLoaded('licenseType', fn () => $this->bilingualLookup($this->licenseType)),
+            'rights_status' => $this->whenLoaded('rightsStatus', fn () => $this->bilingualLookup($this->rightsStatus)),
             'authors' => $this->whenLoaded('authors', fn () => $this->authors->map(fn ($author) => [
                 'id' => $author->id,
                 'name' => $author->name,
@@ -67,5 +73,21 @@ class DocumentResource extends JsonResource
             'name' => $model->name,
             'code' => $withCode ? $model->code : null,
         ], fn ($value) => $value !== null);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function bilingualLookup($model): ?array
+    {
+        if ($model === null) {
+            return null;
+        }
+
+        return [
+            'id' => $model->id,
+            'code' => $model->code,
+            'name_ar' => $model->name_ar,
+            'name_en' => $model->name_en,
+            'name' => $model->name_ar.' - '.$model->name_en,
+        ];
     }
 }

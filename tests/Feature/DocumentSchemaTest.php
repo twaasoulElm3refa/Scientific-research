@@ -9,6 +9,8 @@ use App\Models\Country;
 use App\Models\Document;
 use App\Models\DocumentAuthor;
 use App\Models\DocumentContributor;
+use App\Models\LicenseType;
+use App\Models\RightsStatus;
 use App\Models\Specialization;
 use App\Models\Subcategory;
 use App\Models\User;
@@ -34,10 +36,23 @@ class DocumentSchemaTest extends TestCase
         ]);
         $country = Country::create(['name' => 'Egypt', 'code' => 'EG']);
         $user = User::factory()->create();
+        $licenseType = LicenseType::create([
+            'code' => 'cc_by',
+            'name_ar' => 'نسب المصدر',
+            'name_en' => 'Attribution',
+        ]);
+        $rightsStatus = RightsStatus::create([
+            'code' => 'open_access',
+            'name_ar' => 'متاح',
+            'name_en' => 'Open Access',
+        ]);
         $document = Document::create([
             'user_id' => $user->id,
             'specialization_id' => $specialization->id,
             'country_id' => $country->id,
+            'license_type_id' => $licenseType->id,
+            'rights_status_id' => $rightsStatus->id,
+            'url' => 'https://example.com/document',
             'title' => 'A Search Paper',
             'drive_file_id' => 'drive-file-1',
         ]);
@@ -68,6 +83,10 @@ class DocumentSchemaTest extends TestCase
         $this->assertTrue($document->user->is($user));
         $this->assertTrue($document->specialization->is($specialization));
         $this->assertTrue($document->country->is($country));
+        $this->assertTrue($document->licenseType->is($licenseType));
+        $this->assertTrue($document->rightsStatus->is($rightsStatus));
+        $this->assertTrue($licenseType->documents->contains($document));
+        $this->assertTrue($rightsStatus->documents->contains($document));
         $this->assertSame(
             [$firstAuthor->id, $secondAuthor->id],
             $document->authors->pluck('id')->all()
@@ -124,7 +143,7 @@ class DocumentSchemaTest extends TestCase
             'specializations' => ['subcategory_id'],
             'authors' => ['country_id'],
             'contributors' => ['country_id'],
-            'documents' => ['user_id', 'specialization_id', 'country_id'],
+            'documents' => ['user_id', 'specialization_id', 'country_id', 'license_type_id', 'rights_status_id'],
             'document_authors' => ['document_id', 'author_id'],
             'document_contributors' => ['document_id', 'contributor_id'],
         ];

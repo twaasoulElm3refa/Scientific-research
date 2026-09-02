@@ -15,7 +15,7 @@ class userSeeder extends Seeder
         $users =
             [
                 [
-                    'name' => 'Mohamed',
+                    'name' => 'Mohamed - محمد',
                     'email' => 'admin@admin.com',
                     'phone' => '01024328382',
                     'role' => 'admin',
@@ -23,7 +23,7 @@ class userSeeder extends Seeder
                     'slug' => 'mohamed-admin',
                 ],
                 [
-                    'name' => 'Ahmed',
+                    'name' => 'Ahmed - أحمد',
                     'email' => 'user@user.com',
                     'phone' => '01007352061',
                     'role' => 'user',
@@ -34,6 +34,11 @@ class userSeeder extends Seeder
             ];
 
         foreach ($users as $user) {
+            User::query()
+                ->where('email', $user['email'])
+                ->where('name', explode(' - ', $user['name'], 2)[0])
+                ->update(['name' => $user['name']]);
+
             User::firstOrCreate(
                 ['email' => $user['email']],
                 $user + ['is_active' => true],

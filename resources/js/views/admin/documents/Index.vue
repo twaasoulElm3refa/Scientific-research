@@ -15,8 +15,12 @@
         <form class="documents-filters" @submit.prevent="loadDocuments(1)">
             <div class="documents-filters__search">
                 <i class="bi bi-search" aria-hidden="true"></i>
-                <input v-model.trim="filters.search" type="search" placeholder="Search file name, DOI, or author..." />
+                <input v-model.trim="filters.search" type="search" placeholder="Search documents and rights metadata..." />
             </div>
+            <select v-model="filters.source_id" aria-label="Filter by source" @change="loadDocuments(1)">
+                <option value="">All sources</option>
+                <option v-for="item in lookups.sources" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
             <select v-model="filters.category_id" aria-label="Filter by category" @change="loadDocuments(1)">
                 <option value="">All categories</option>
                 <option v-for="item in lookups.categories" :key="item.id" :value="item.id">{{ item.name }}</option>
@@ -28,6 +32,14 @@
             <select v-model="filters.language_id" aria-label="Filter by language" @change="loadDocuments(1)">
                 <option value="">All languages</option>
                 <option v-for="item in lookups.languages" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+            <select v-model="filters.license_type_id" aria-label="Filter by license type" @change="loadDocuments(1)">
+                <option value="">All licenses</option>
+                <option v-for="item in lookups.licenseTypes" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+            <select v-model="filters.rights_status_id" aria-label="Filter by rights status" @change="loadDocuments(1)">
+                <option value="">All rights statuses</option>
+                <option v-for="item in lookups.rightsStatuses" :key="item.id" :value="item.id">{{ item.name }}</option>
             </select>
             <select v-model="filters.sorting" aria-label="Sort documents" @change="loadDocuments(1)">
                 <option value="created_at:desc">Newest first</option>
@@ -45,14 +57,14 @@
                 <thead>
                     <tr>
                         <th>File Name</th>
-                        <th>Source / Magazine</th>
-                        <th>Type / Language</th>
-                        <th>Publish Date</th>
-                        <th>Classification</th>
-                        <th>Authors</th>
-                        <th>Created By</th>
-                        <th>Created At</th>
-                        <th>Actions</th>
+                        <th>Source</th>
+                        <th>Document Type</th>
+                        <th>Author</th>
+                        <th>License Type</th>
+                        <th>Rights Status</th>
+                        <th>DOI</th>
+                        <th>URL</th>
+                        <th>Upload Date</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -68,22 +80,19 @@
                     <tr v-for="document in documents" v-else :key="document.id">
                         <td>
                             <strong>{{ document.file_name }}</strong>
-                            <small>{{ document.doi }}</small>
+                            <a v-if="document.drive.web_view_link" :href="document.drive.web_view_link" target="_blank" rel="noopener noreferrer" class="documents-table__drive-link">Open file</a>
                         </td>
-                        <td>{{ document.source?.name || "—" }}<small>{{ document.magazine?.name || "—" }}</small></td>
-                        <td>{{ document.document_type?.name || "—" }}<small>{{ document.language?.name || "—" }}</small></td>
-                        <td>{{ document.publish_date || "—" }}</td>
-                        <td>{{ document.category?.name || "—" }}<small>{{ document.subcategory?.name || "—" }}</small></td>
+                        <td>{{ document.source?.name || "—" }}</td>
+                        <td>{{ document.document_type?.name || "—" }}</td>
                         <td><span class="documents-table__authors">{{ authorNames(document) }}</span></td>
-                        <td>{{ document.created_by?.name || "—" }}</td>
-                        <td>{{ formatDate(document.created_at) }}</td>
+                        <td>{{ document.license_type?.name || "—" }}</td>
+                        <td>{{ document.rights_status?.name || "—" }}</td>
+                        <td>{{ document.doi || "—" }}</td>
                         <td>
-                            <a v-if="document.drive.web_view_link" :href="document.drive.web_view_link" target="_blank" rel="noopener noreferrer" class="documents-table__action" title="Open in Google Drive">
-                                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
-                                <span>Open</span>
-                            </a>
+                            <a v-if="document.url" :href="document.url" target="_blank" rel="noopener noreferrer" class="documents-table__url">{{ document.url }}</a>
                             <span v-else>—</span>
                         </td>
+                        <td>{{ formatDate(document.created_at) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -107,8 +116,17 @@ const documents = ref([]);
 const loading = ref(true);
 const errorMessage = ref("");
 const meta = reactive({ current_page: 1, last_page: 1, total: 0 });
-const filters = reactive({ search: "", category_id: "", document_type_id: "", language_id: "", sorting: "created_at:desc" });
-const lookups = reactive({ categories: [], documentTypes: [], languages: [] });
+const filters = reactive({
+    search: "",
+    source_id: "",
+    category_id: "",
+    document_type_id: "",
+    language_id: "",
+    license_type_id: "",
+    rights_status_id: "",
+    sorting: "created_at:desc",
+});
+const lookups = reactive({ sources: [], categories: [], documentTypes: [], languages: [], licenseTypes: [], rightsStatuses: [] });
 
 const fetchLookup = async (type) => {
     const response = await api.get(`/admin/documents/lookups/${type}`, { params: { per_page: 100 } });
@@ -126,9 +144,12 @@ const loadDocuments = async (page = 1) => {
                 page,
                 per_page: 15,
                 search: filters.search || undefined,
+                source_id: filters.source_id || undefined,
                 category_id: filters.category_id || undefined,
                 document_type_id: filters.document_type_id || undefined,
                 language_id: filters.language_id || undefined,
+                license_type_id: filters.license_type_id || undefined,
+                rights_status_id: filters.rights_status_id || undefined,
                 sort,
                 direction,
             },
@@ -154,12 +175,15 @@ const formatDate = (value) => value
 
 onMounted(async () => {
     try {
-        const [categories, documentTypes, languages] = await Promise.all([
+        const [sources, categories, documentTypes, languages, licenseTypes, rightsStatuses] = await Promise.all([
+            fetchLookup("sources"),
             fetchLookup("categories"),
             fetchLookup("document-types"),
             fetchLookup("languages"),
+            fetchLookup("license-types"),
+            fetchLookup("rights-statuses"),
         ]);
-        Object.assign(lookups, { categories, documentTypes, languages });
+        Object.assign(lookups, { sources, categories, documentTypes, languages, licenseTypes, rightsStatuses });
     } catch (error) {
         errorMessage.value = error.response?.data?.message || "Filter data could not be loaded.";
     }
@@ -174,23 +198,23 @@ onMounted(async () => {
 .documents-list__header h2 { margin: .2rem 0; font-size: 1.75rem; font-weight: 780; }
 .documents-list__header p { margin: 0; color: #64748b; font-size: .86rem; }
 .documents-list__add { min-height: 42px; padding: .62rem .9rem; border-radius: 9px; color: #fff; background: #2563eb; display: inline-flex; align-items: center; gap: .45rem; font-size: .85rem; font-weight: 700; text-decoration: none; }
-.documents-filters { margin-bottom: 1rem; padding: .9rem; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; display: grid; grid-template-columns: minmax(220px, 1.7fr) repeat(4, minmax(135px, 1fr)) auto; gap: .6rem; }
+.documents-filters { margin-bottom: 1rem; padding: .9rem; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; display: grid; grid-template-columns: repeat(4, minmax(145px, 1fr)); gap: .6rem; }
 .documents-filters input, .documents-filters select { width: 100%; min-height: 40px; padding: .5rem .65rem; border: 1px solid #cbd5e1; border-radius: 8px; outline: 0; color: #334155; background: #fff; font-size: .78rem; }
-.documents-filters__search { position: relative; }
+.documents-filters__search { position: relative; grid-column: span 2; }
 .documents-filters__search i { position: absolute; top: 50%; left: .7rem; color: #94a3b8; transform: translateY(-50%); }
 .documents-filters__search input { padding-left: 2rem; }
 .documents-filters button { padding: .5rem .8rem; border: 0; border-radius: 8px; color: #fff; background: #2563eb; font-size: .8rem; font-weight: 700; }
 .documents-list__error { margin-bottom: 1rem; padding: .75rem; border: 1px solid #fecaca; border-radius: 8px; color: #b91c1c; background: #fef2f2; font-size: .82rem; }
 .documents-table-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow-x: auto; background: #fff; }
-.documents-table { width: 100%; min-width: 1100px; border-collapse: collapse; }
+.documents-table { width: 100%; min-width: 1350px; border-collapse: collapse; }
 .documents-table th { padding: .75rem; border-bottom: 1px solid #e2e8f0; color: #64748b; background: #f8fafc; font-size: .7rem; letter-spacing: .04em; text-align: left; text-transform: uppercase; }
 .documents-table td { max-width: 190px; padding: .8rem .75rem; border-bottom: 1px solid #eef2f7; color: #334155; font-size: .78rem; vertical-align: top; }
 .documents-table tr:last-child td { border-bottom: 0; }
 .documents-table td strong, .documents-table td small { display: block; }
 .documents-table td strong { color: #172033; }
-.documents-table td small { margin-top: .18rem; color: #94a3b8; }
 .documents-table__authors { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.documents-table__action { color: #2563eb; display: inline-flex; align-items: center; gap: .3rem; font-weight: 650; text-decoration: none; }
+.documents-table__drive-link { margin-top: .25rem; display: inline-block; color: #2563eb; font-size: .72rem; text-decoration: none; }
+.documents-table__url { max-width: 190px; display: block; overflow: hidden; color: #2563eb; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
 .documents-table__state { height: 150px; color: #64748b !important; text-align: center !important; vertical-align: middle !important; }
 .documents-pagination { padding: 1rem .2rem; display: flex; justify-content: space-between; align-items: center; color: #64748b; font-size: .78rem; }
 .documents-pagination div { display: flex; gap: .45rem; }

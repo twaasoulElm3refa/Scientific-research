@@ -27,7 +27,7 @@
                     <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
                     <div>
                         <h3>Document file</h3>
-                        <p>PDF, DOCX, PPTX, or TXT. The server-configured size limit applies.</p>
+                        <p>PDF, DOCX, PPTX, or TXT. No application file-size limit applies.</p>
                     </div>
                 </div>
 
@@ -56,31 +56,35 @@
                 </div>
 
                 <div class="document-grid">
-                    <div class="form-field form-field--wide">
-                        <label for="file-name">File Name <b>*</b></label>
-                        <input id="file-name" v-model.trim="form.file_name" type="text" maxlength="500" />
-                        <small v-if="fieldError('file_name')" class="field-error">{{ fieldError("file_name") }}</small>
+                    <div class="form-field">
+                        <label for="file-name">File Name (Automatic)</label>
+                        <input id="file-name" :value="selectedFile?.name || ''" type="text" placeholder="Generated from the selected file" readonly />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="document-title">Document Title <b>*</b></label>
+                        <input id="document-title" v-model.trim="form.title" type="text" maxlength="500" />
+                        <small v-if="fieldError('title')" class="field-error">{{ fieldError("title") }}</small>
                     </div>
 
                     <SearchableCreatableSelect
                         v-model="form.source_id"
-                        label="Source / Publisher"
+                        label="Publisher / Source"
                         type="sources"
                         placeholder="Search publishers..."
-                        required
                         :error="fieldError('source_id')"
                         @selected="selectedSource = $event"
                     />
                     <SearchableCreatableSelect
+                        v-if="showsJournalFields"
                         v-model="form.magazine_id"
-                        label="Magazine"
+                        label="Journal / Magazine"
                         type="magazines"
                         placeholder="Search journals..."
                         parent-param="source_id"
                         :parent-id="form.source_id"
                         :parent-label="selectedSource?.name || ''"
                         dependency-message="Select a source first."
-                        required
                         :error="fieldError('magazine_id')"
                         @selected="selectedMagazine = $event"
                     />
@@ -91,6 +95,7 @@
                         placeholder="Search document types..."
                         required
                         :error="fieldError('document_type_id')"
+                        @selected="selectedDocumentType = $event"
                     />
                     <SearchableCreatableSelect
                         v-model="form.language_id"
@@ -101,11 +106,47 @@
                         :error="fieldError('language_id')"
                     />
 
-                    <div class="form-field form-field--wide">
-                        <label for="doi">DOI <b>*</b></label>
+                    <div class="form-field">
+                        <label for="doi">DOI</label>
                         <input id="doi" v-model.trim="form.doi" type="text" placeholder="10.xxxx/identifier" maxlength="255" />
                         <small v-if="fieldError('doi')" class="field-error">{{ fieldError("doi") }}</small>
                     </div>
+
+                    <div v-if="isBookType" class="form-field">
+                        <label for="isbn">ISBN</label>
+                        <input id="isbn" v-model.trim="form.isbn" type="text" maxlength="100" />
+                        <small v-if="fieldError('isbn')" class="field-error">{{ fieldError("isbn") }}</small>
+                    </div>
+
+                    <div v-if="showsJournalFields" class="form-field">
+                        <label for="issn">ISSN</label>
+                        <input id="issn" v-model.trim="form.issn" type="text" maxlength="100" />
+                        <small v-if="fieldError('issn')" class="field-error">{{ fieldError("issn") }}</small>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="document-url">Original Source URL</label>
+                        <input id="document-url" v-model.trim="form.url" type="url" placeholder="https://example.com/document" maxlength="2048" />
+                        <small v-if="fieldError('url')" class="field-error">{{ fieldError("url") }}</small>
+                    </div>
+
+                    <SearchableCreatableSelect
+                        v-model="form.license_type_id"
+                        label="License Type"
+                        type="license-types"
+                        placeholder="Search licenses..."
+                        :allow-create="false"
+                        :error="fieldError('license_type_id')"
+                    />
+                    <SearchableCreatableSelect
+                        v-model="form.rights_status_id"
+                        label="Rights Status"
+                        type="rights-statuses"
+                        placeholder="Search rights statuses..."
+                        :allow-create="false"
+                        required
+                        :error="fieldError('rights_status_id')"
+                    />
 
                     <div class="form-field">
                         <label for="publish-year">Publish Year</label>
@@ -114,7 +155,7 @@
                     </div>
 
                     <div class="form-field">
-                        <label for="publish-date">Publish Date <b>*</b></label>
+                        <label for="publish-date">Publish Month</label>
                         <input id="publish-date" v-model="form.publish_date" type="month" />
                         <small v-if="fieldError('publish_date')" class="field-error">{{ fieldError("publish_date") }}</small>
                     </div>
@@ -163,7 +204,6 @@
                         :parent-id="form.category_id"
                         :parent-label="selectedCategory?.name || ''"
                         dependency-message="Select a main category first."
-                        required
                         :error="fieldError('subcategory_id')"
                         @selected="selectedSubcategory = $event"
                     />
@@ -237,7 +277,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import SearchableCreatableSelect from "../../../components/admin/SearchableCreatableSelect.vue";
 import api from "../../../services/api";
 
@@ -253,11 +293,16 @@ const newSubmissionId = () => {
 
 const defaultForm = () => ({
     submission_id: newSubmissionId(),
-    file_name: "",
+    title: "",
     source_id: "",
     magazine_id: "",
     document_type_id: "",
     doi: "",
+    isbn: "",
+    issn: "",
+    url: "",
+    license_type_id: "",
+    rights_status_id: "",
     language_id: "",
     publish_year: "",
     publish_date: "",
@@ -271,6 +316,7 @@ const defaultForm = () => ({
 const form = reactive(defaultForm());
 const selectedSource = ref(null);
 const selectedMagazine = ref(null);
+const selectedDocumentType = ref(null);
 const selectedCategory = ref(null);
 const selectedSubcategory = ref(null);
 const selectedSpecialization = ref(null);
@@ -285,6 +331,19 @@ const validationErrors = ref({});
 const errorMessage = ref("");
 const successMessage = ref("");
 const nextYear = new Date().getFullYear() + 1;
+const typeNameContains = (...terms) => {
+    const name = selectedDocumentType.value?.name?.toLocaleLowerCase() || "";
+    return terms.some((term) => name.includes(term));
+};
+const showsJournalFields = computed(() => typeNameContains(
+    "research",
+    "article",
+    "journal",
+    "بحث",
+    "مقال",
+    "مجلة",
+));
+const isBookType = computed(() => typeNameContains("book", "كتاب"));
 watch(() => form.category_id, () => {
     form.subcategory_id = "";
     form.specialization_id = "";
@@ -300,6 +359,16 @@ watch(() => form.subcategory_id, () => {
 watch(() => form.source_id, () => {
     form.magazine_id = "";
     selectedMagazine.value = null;
+});
+
+watch(selectedDocumentType, () => {
+    if (!showsJournalFields.value) {
+        form.magazine_id = "";
+        form.issn = "";
+        selectedMagazine.value = null;
+    }
+
+    if (!isBookType.value) form.isbn = "";
 });
 
 const selectFile = (event) => {
@@ -335,6 +404,7 @@ const resetForm = () => {
     selectedContributors.value = [];
     selectedSource.value = null;
     selectedMagazine.value = null;
+    selectedDocumentType.value = null;
     selectedCategory.value = null;
     selectedSubcategory.value = null;
     selectedSpecialization.value = null;

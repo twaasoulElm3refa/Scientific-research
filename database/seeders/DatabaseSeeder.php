@@ -19,6 +19,8 @@ class DatabaseSeeder extends Seeder
             CountrySeeder::class,
             LanguageSeeder::class,
             DocumentTypeSeeder::class,
+            LicenseTypeSeeder::class,
+            RightsStatusSeeder::class,
             SubcategorySeeder::class,
             SpecializationSeeder::class,
             SourceSeeder::class,

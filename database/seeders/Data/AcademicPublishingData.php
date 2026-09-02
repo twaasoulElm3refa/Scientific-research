@@ -8,44 +8,44 @@ final class AcademicPublishingData
     public static function sources(): array
     {
         return [
-            'Elsevier',
-            'Springer Nature',
-            'Wiley',
-            'Taylor & Francis',
-            'SAGE Publications',
-            'Oxford University Press',
-            'Cambridge University Press',
-            'IEEE',
-            'ACM',
-            'Emerald Publishing',
-            'MDPI',
-            'Frontiers',
-            'De Gruyter',
-            'Brill',
-            'Nature Portfolio',
-            'BMJ',
-            'American Medical Association',
-            'American Psychological Association',
-            'American Chemical Society',
-            'Royal Society of Chemistry',
-            'American Physical Society',
-            'Institute of Physics',
-            'MIT Press',
-            'Harvard University Press',
-            'Princeton University Press',
-            'University of Chicago Press',
-            'Routledge',
-            'Palgrave Macmillan',
-            'World Scientific',
-            'American Association for the Advancement of Science',
-            'National Academy of Sciences',
-            'Massachusetts Medical Society',
-            'American Economic Association',
-            'USC Annenberg Press',
-            'Harvard Law Review Association',
-            'The Yale Law Journal Company',
-            'Stanford Law Review',
-            'JMLR, Inc.',
+            'Elsevier - إلسفير',
+            'Springer Nature - سبرينغر نيتشر',
+            'Wiley - وايلي',
+            'Taylor & Francis - تايلور وفرانسيس',
+            'SAGE Publications - منشورات سيج',
+            'Oxford University Press - مطبعة جامعة أكسفورد',
+            'Cambridge University Press - مطبعة جامعة كامبريدج',
+            'IEEE - معهد مهندسي الكهرباء والإلكترونيات',
+            'ACM - جمعية آلات الحوسبة',
+            'Emerald Publishing - إيميرالد للنشر',
+            'MDPI - المعهد متعدد التخصصات للنشر الرقمي',
+            'Frontiers - فرونتيرز',
+            'De Gruyter - دي غرويتر',
+            'Brill - بريل',
+            'Nature Portfolio - مجموعة نيتشر',
+            'BMJ - المجلة الطبية البريطانية',
+            'American Medical Association - الجمعية الطبية الأمريكية',
+            'American Psychological Association - الجمعية الأمريكية لعلم النفس',
+            'American Chemical Society - الجمعية الكيميائية الأمريكية',
+            'Royal Society of Chemistry - الجمعية الملكية للكيمياء',
+            'American Physical Society - الجمعية الفيزيائية الأمريكية',
+            'Institute of Physics - معهد الفيزياء',
+            'MIT Press - مطبعة معهد ماساتشوستس للتكنولوجيا',
+            'Harvard University Press - مطبعة جامعة هارفارد',
+            'Princeton University Press - مطبعة جامعة برينستون',
+            'University of Chicago Press - مطبعة جامعة شيكاغو',
+            'Routledge - روتليدج',
+            'Palgrave Macmillan - بالغريف ماكميلان',
+            'World Scientific - وورلد ساينتيفك',
+            'American Association for the Advancement of Science - الجمعية الأمريكية لتقدم العلوم',
+            'National Academy of Sciences - الأكاديمية الوطنية للعلوم',
+            'Massachusetts Medical Society - جمعية ماساتشوستس الطبية',
+            'American Economic Association - الجمعية الاقتصادية الأمريكية',
+            'USC Annenberg Press - مطبعة أننبرغ بجامعة جنوب كاليفورنيا',
+            'Harvard Law Review Association - جمعية هارفارد لمراجعة القانون',
+            'The Yale Law Journal Company - شركة مجلة ييل للقانون',
+            'Stanford Law Review - مراجعة ستانفورد للقانون',
+            'JMLR, Inc. - مؤسسة مجلة أبحاث تعلم الآلة',
         ];
     }
 
@@ -57,108 +57,108 @@ final class AcademicPublishingData
     public static function magazinesBySource(): array
     {
         return [
-            'Nature Portfolio' => [
-                'Nature',
-                'Nature Communications',
-                'Scientific Reports',
-                'Nature Medicine',
-                'Nature Machine Intelligence',
+            'Nature Portfolio - مجموعة نيتشر' => [
+                'Nature - نيتشر',
+                'Nature Communications - اتصالات نيتشر',
+                'Scientific Reports - التقارير العلمية',
+                'Nature Medicine - طب نيتشر',
+                'Nature Machine Intelligence - ذكاء الآلة من نيتشر',
             ],
-            'American Association for the Advancement of Science' => [
-                'Science',
-                'Science Advances',
+            'American Association for the Advancement of Science - الجمعية الأمريكية لتقدم العلوم' => [
+                'Science - العلوم',
+                'Science Advances - تقدم العلوم',
             ],
-            'National Academy of Sciences' => [
-                'Proceedings of the National Academy of Sciences',
+            'National Academy of Sciences - الأكاديمية الوطنية للعلوم' => [
+                'Proceedings of the National Academy of Sciences - وقائع الأكاديمية الوطنية للعلوم',
             ],
-            'Elsevier' => [
-                'The Lancet',
-                'Artificial Intelligence',
-                'Expert Systems with Applications',
-                'Pattern Recognition',
+            'Elsevier - إلسفير' => [
+                'The Lancet - ذا لانسيت',
+                'Artificial Intelligence - الذكاء الاصطناعي',
+                'Expert Systems with Applications - النظم الخبيرة وتطبيقاتها',
+                'Pattern Recognition - التعرف على الأنماط',
             ],
-            'Massachusetts Medical Society' => [
-                'The New England Journal of Medicine',
+            'Massachusetts Medical Society - جمعية ماساتشوستس الطبية' => [
+                'The New England Journal of Medicine - مجلة نيو إنجلاند الطبية',
             ],
-            'American Medical Association' => [
-                'JAMA',
+            'American Medical Association - الجمعية الطبية الأمريكية' => [
+                'JAMA - مجلة الجمعية الطبية الأمريكية',
             ],
-            'BMJ' => [
-                'BMJ',
+            'BMJ - المجلة الطبية البريطانية' => [
+                'BMJ - المجلة الطبية البريطانية',
             ],
-            'IEEE' => [
-                'IEEE Access',
-                'IEEE Transactions on Pattern Analysis and Machine Intelligence',
+            'IEEE - معهد مهندسي الكهرباء والإلكترونيات' => [
+                'IEEE Access - الوصول المفتوح لمعهد مهندسي الكهرباء والإلكترونيات',
+                'IEEE Transactions on Pattern Analysis and Machine Intelligence - معاملات معهد مهندسي الكهرباء والإلكترونيات في تحليل الأنماط وذكاء الآلة',
             ],
-            'ACM' => [
-                'ACM Computing Surveys',
-                'Communications of the ACM',
+            'ACM - جمعية آلات الحوسبة' => [
+                'ACM Computing Surveys - مسوحات الحوسبة لجمعية آلات الحوسبة',
+                'Communications of the ACM - اتصالات جمعية آلات الحوسبة',
             ],
-            'MIT Press' => [
-                'International Security',
+            'MIT Press - مطبعة معهد ماساتشوستس للتكنولوجيا' => [
+                'International Security - الأمن الدولي',
             ],
-            'Oxford University Press' => [
-                'Journal of Communication',
-                'The Quarterly Journal of Economics',
-                'The Review of Economic Studies',
-                'Oxford Journal of Legal Studies',
-                'Social Forces',
-                'European Sociological Review',
+            'Oxford University Press - مطبعة جامعة أكسفورد' => [
+                'Journal of Communication - مجلة الاتصال',
+                'The Quarterly Journal of Economics - المجلة الفصلية للاقتصاد',
+                'The Review of Economic Studies - مراجعة الدراسات الاقتصادية',
+                'Oxford Journal of Legal Studies - مجلة أكسفورد للدراسات القانونية',
+                'Social Forces - القوى الاجتماعية',
+                'European Sociological Review - المراجعة الأوروبية لعلم الاجتماع',
             ],
-            'SAGE Publications' => [
-                'Communication Research',
-                'New Media & Society',
-                'Journalism',
-                'Journalism & Mass Communication Quarterly',
-                'Media, Culture & Society',
-                'European Journal of International Relations',
-                'Psychological Science',
-                'American Sociological Review',
+            'SAGE Publications - منشورات سيج' => [
+                'Communication Research - بحوث الاتصال',
+                'New Media & Society - الإعلام الجديد والمجتمع',
+                'Journalism - الصحافة',
+                'Journalism & Mass Communication Quarterly - الفصلية للصحافة والاتصال الجماهيري',
+                'Media, Culture & Society - الإعلام والثقافة والمجتمع',
+                'European Journal of International Relations - المجلة الأوروبية للعلاقات الدولية',
+                'Psychological Science - العلوم النفسية',
+                'American Sociological Review - المراجعة الأمريكية لعلم الاجتماع',
             ],
-            'Taylor & Francis' => [
-                'Digital Journalism',
-                'Political Communication',
+            'Taylor & Francis - تايلور وفرانسيس' => [
+                'Digital Journalism - الصحافة الرقمية',
+                'Political Communication - الاتصال السياسي',
             ],
-            'USC Annenberg Press' => [
-                'International Journal of Communication',
+            'USC Annenberg Press - مطبعة أننبرغ بجامعة جنوب كاليفورنيا' => [
+                'International Journal of Communication - المجلة الدولية للاتصال',
             ],
-            'Cambridge University Press' => [
-                'American Political Science Review',
-                'International Organization',
-                'World Politics',
-                'American Journal of International Law',
+            'Cambridge University Press - مطبعة جامعة كامبريدج' => [
+                'American Political Science Review - المراجعة الأمريكية للعلوم السياسية',
+                'International Organization - التنظيم الدولي',
+                'World Politics - السياسة العالمية',
+                'American Journal of International Law - المجلة الأمريكية للقانون الدولي',
             ],
-            'Wiley' => [
-                'American Journal of Political Science',
-                'Political Psychology',
-                'Econometrica',
-                'Journal of Marriage and Family',
+            'Wiley - وايلي' => [
+                'American Journal of Political Science - المجلة الأمريكية للعلوم السياسية',
+                'Political Psychology - علم النفس السياسي',
+                'Econometrica - إيكونومتريكا',
+                'Journal of Marriage and Family - مجلة الزواج والأسرة',
             ],
-            'American Economic Association' => [
-                'American Economic Review',
+            'American Economic Association - الجمعية الاقتصادية الأمريكية' => [
+                'American Economic Review - المراجعة الاقتصادية الأمريكية',
             ],
-            'University of Chicago Press' => [
-                'Journal of Political Economy',
-                'American Journal of Sociology',
+            'University of Chicago Press - مطبعة جامعة شيكاغو' => [
+                'Journal of Political Economy - مجلة الاقتصاد السياسي',
+                'American Journal of Sociology - المجلة الأمريكية لعلم الاجتماع',
             ],
-            'American Psychological Association' => [
-                'American Psychologist',
-                'Psychological Bulletin',
-                'Psychological Review',
-                'Journal of Personality and Social Psychology',
-                'Journal of Counseling Psychology',
+            'American Psychological Association - الجمعية الأمريكية لعلم النفس' => [
+                'American Psychologist - عالم النفس الأمريكي',
+                'Psychological Bulletin - النشرة النفسية',
+                'Psychological Review - المراجعة النفسية',
+                'Journal of Personality and Social Psychology - مجلة الشخصية وعلم النفس الاجتماعي',
+                'Journal of Counseling Psychology - مجلة علم النفس الإرشادي',
             ],
-            'Harvard Law Review Association' => [
-                'Harvard Law Review',
+            'Harvard Law Review Association - جمعية هارفارد لمراجعة القانون' => [
+                'Harvard Law Review - مراجعة هارفارد للقانون',
             ],
-            'The Yale Law Journal Company' => [
-                'Yale Law Journal',
+            'The Yale Law Journal Company - شركة مجلة ييل للقانون' => [
+                'Yale Law Journal - مجلة ييل للقانون',
             ],
-            'Stanford Law Review' => [
-                'Stanford Law Review',
+            'Stanford Law Review - مراجعة ستانفورد للقانون' => [
+                'Stanford Law Review - مراجعة ستانفورد للقانون',
             ],
-            'JMLR, Inc.' => [
-                'Journal of Machine Learning Research',
+            'JMLR, Inc. - مؤسسة مجلة أبحاث تعلم الآلة' => [
+                'Journal of Machine Learning Research - مجلة أبحاث تعلم الآلة',
             ],
         ];
     }
@@ -166,6 +166,7 @@ final class AcademicPublishingData
     /** @return list<string> */
     public static function independentMagazines(): array
     {
-        return [];
+        return [
+        ];
     }
 }

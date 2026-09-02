@@ -10,7 +10,9 @@ use App\Models\Contributor;
 use App\Models\Country;
 use App\Models\DocumentType;
 use App\Models\Language;
+use App\Models\LicenseType;
 use App\Models\Magazine;
+use App\Models\RightsStatus;
 use App\Models\Source;
 use App\Models\Specialization;
 use App\Models\Subcategory;
@@ -36,6 +38,8 @@ class DocumentLookupController extends Controller
         'authors' => Author::class,
         'contributors' => Contributor::class,
         'countries' => Country::class,
+        'license-types' => LicenseType::class,
+        'rights-statuses' => RightsStatus::class,
     ];
 
     private const CREATABLE_LOOKUPS = [
@@ -83,12 +87,23 @@ class DocumentLookupController extends Controller
 
         $this->applyParentFilter($query, $type, $filters);
 
+        $isBilingualLookup = in_array($type, ['license-types', 'rights-statuses'], true);
+
         if (! empty($filters['search'])) {
-            $query->whereRaw('LOWER(name) LIKE ?', ['%'.LookupName::comparable($filters['search']).'%']);
+            $term = '%'.LookupName::comparable($filters['search']).'%';
+
+            if ($isBilingualLookup) {
+                $query->where(fn (Builder $query) => $query
+                    ->whereRaw('LOWER(code) LIKE ?', [$term])
+                    ->orWhereRaw('LOWER(name_ar) LIKE ?', [$term])
+                    ->orWhereRaw('LOWER(name_en) LIKE ?', [$term]));
+            } else {
+                $query->whereRaw('LOWER(name) LIKE ?', [$term]);
+            }
         }
 
         $paginator = $query
-            ->orderBy('name')
+            ->orderBy($isBilingualLookup ? 'name_en' : 'name')
             ->paginate($filters['per_page'] ?? 20);
 
         return response()->json([
@@ -211,10 +226,15 @@ class DocumentLookupController extends Controller
     /** @return array<string, mixed> */
     private function serialize(Model $item): array
     {
+        $nameAr = $item->getAttribute('name_ar');
+        $nameEn = $item->getAttribute('name_en');
+
         return array_filter([
             'id' => $item->getKey(),
-            'name' => $item->getAttribute('name'),
+            'name' => $nameAr && $nameEn ? $nameAr.' - '.$nameEn : $item->getAttribute('name'),
             'code' => $item->getAttribute('code'),
+            'name_ar' => $nameAr,
+            'name_en' => $nameEn,
             'category_id' => $item->getAttribute('category_id'),
             'subcategory_id' => $item->getAttribute('subcategory_id'),
             'source_id' => $item->getAttribute('source_id'),

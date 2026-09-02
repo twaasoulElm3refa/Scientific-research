@@ -17,6 +17,9 @@ class FakeGoogleDrive implements GoogleDrive
     public array $uploadedFiles = [];
 
     /** @var list<string> */
+    public array $uploadedDisplayNames = [];
+
+    /** @var list<string> */
     public array $deletedFiles = [];
 
     public function uploadFile(UploadedFile $file, string $displayName, CarbonInterface $folderDate): array
@@ -26,6 +29,7 @@ class FakeGoogleDrive implements GoogleDrive
         }
 
         $this->uploadedFiles[] = $file->getClientOriginalName();
+        $this->uploadedDisplayNames[] = $displayName;
 
         return [
             'id' => $this->nextFileId,

@@ -10,7 +10,9 @@ use App\Models\Country;
 use App\Models\Document;
 use App\Models\DocumentType;
 use App\Models\Language;
+use App\Models\LicenseType;
 use App\Models\Magazine;
+use App\Models\RightsStatus;
 use App\Models\Source;
 use App\Models\Specialization;
 use App\Models\Subcategory;
@@ -32,7 +34,6 @@ class AdminDocumentManagementTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('services.google_drive.max_file_size_mb', 25);
         $this->drive = new FakeGoogleDrive;
         $this->app->instance(GoogleDrive::class, $this->drive);
     }
@@ -47,9 +48,13 @@ class AdminDocumentManagementTest extends TestCase
         $response
             ->assertCreated()
             ->assertJsonPath('message', 'Document created successfully.')
-            ->assertJsonPath('document.file_name', 'Secure Research Document')
+            ->assertJsonPath('document.file_name', 'uuid-safe-document.pdf')
+            ->assertJsonPath('document.title', 'Secure Research Document')
             ->assertJsonPath('document.publish_date', '2026-04')
             ->assertJsonPath('document.source.id', $relations['source']->id)
+            ->assertJsonPath('document.license_type.id', $relations['licenseType']->id)
+            ->assertJsonPath('document.rights_status.id', $relations['rightsStatus']->id)
+            ->assertJsonPath('document.url', 'https://example.com/secure-document')
             ->assertJsonPath('document.authors.0.id', $relations['author']->id)
             ->assertJsonPath('document.contributors.0.role', 'Reviewer');
 
@@ -58,6 +63,11 @@ class AdminDocumentManagementTest extends TestCase
             'source_id' => $relations['source']->id,
             'category_id' => $relations['category']->id,
             'subcategory_id' => $relations['subcategory']->id,
+            'license_type_id' => $relations['licenseType']->id,
+            'rights_status_id' => $relations['rightsStatus']->id,
+            'url' => 'https://example.com/secure-document',
+            'isbn' => '978-1-4028-9462-6',
+            'issn' => '2049-3630',
             'drive_file_id' => 'fake-drive-file-id',
             'publication_date' => '2026-04-01 00:00:00',
         ]);
@@ -71,6 +81,7 @@ class AdminDocumentManagementTest extends TestCase
             'contributor_order' => 1,
         ]);
         $this->assertSame(['research.pdf'], $this->drive->uploadedFiles);
+        $this->assertSame(['research'], $this->drive->uploadedDisplayNames);
     }
 
     public function test_hierarchy_validation_prevents_upload_and_database_writes(): void
@@ -103,15 +114,81 @@ class AdminDocumentManagementTest extends TestCase
         $this->assertSame([], $this->drive->uploadedFiles);
     }
 
-    public function test_invalid_file_type_is_rejected_before_drive_upload(): void
+    public function test_missing_file_is_rejected_before_drive_upload(): void
     {
         [$admin, $payload] = $this->validPayload();
-        $payload['document_file'] = UploadedFile::fake()->createWithContent('malware.php', '<?php echo "bad";');
+        unset($payload['document_file']);
 
         $this->withToken($admin->createToken('test')->plainTextToken)
             ->post('/api/admin/documents', $payload, ['Accept' => 'application/json'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('document_file');
+
+        $this->assertDatabaseCount('documents', 0);
+        $this->assertSame([], $this->drive->uploadedFiles);
+    }
+
+    public function test_unsupported_file_extension_is_rejected_before_drive_upload(): void
+    {
+        [$admin, $payload] = $this->validPayload();
+        $payload['document_file'] = UploadedFile::fake()->createWithContent('archive.odt', 'future document content');
+
+        $this->withToken($admin->createToken('test')->plainTextToken)
+            ->post('/api/admin/documents', $payload, ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('document_file');
+
+        $this->assertDatabaseCount('documents', 0);
+        $this->assertSame([], $this->drive->uploadedFiles);
+    }
+
+    public function test_optional_document_fields_can_be_omitted(): void
+    {
+        [$admin, $payload] = $this->validPayload();
+        unset(
+            $payload['source_id'],
+            $payload['magazine_id'],
+            $payload['doi'],
+            $payload['isbn'],
+            $payload['issn'],
+            $payload['url'],
+            $payload['license_type_id'],
+            $payload['publish_year'],
+            $payload['publish_date'],
+            $payload['pages_number'],
+            $payload['subcategory_id'],
+            $payload['specialization_id'],
+            $payload['country_id'],
+            $payload['contributors'],
+        );
+
+        $this->withToken($admin->createToken('test')->plainTextToken)
+            ->post('/api/admin/documents', $payload, ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('document.publish_date', null)
+            ->assertJsonPath('document.doi', null)
+            ->assertJsonPath('document.url', null);
+
+        $this->assertDatabaseHas('documents', [
+            'title' => 'Secure Research Document',
+            'source_id' => null,
+            'magazine_id' => null,
+            'publication_date' => null,
+            'subcategory_id' => null,
+            'doi' => null,
+            'url' => null,
+        ]);
+    }
+
+    public function test_title_and_rights_status_are_required(): void
+    {
+        [$admin, $payload] = $this->validPayload();
+        unset($payload['title'], $payload['rights_status_id']);
+
+        $this->withToken($admin->createToken('test')->plainTextToken)
+            ->post('/api/admin/documents', $payload, ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['title', 'rights_status_id']);
 
         $this->assertDatabaseCount('documents', 0);
         $this->assertSame([], $this->drive->uploadedFiles);
@@ -221,9 +298,68 @@ class AdminDocumentManagementTest extends TestCase
             ->getJson('/api/admin/documents?search=secure&per_page=10')
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.file_name', 'Secure Research Document')
+            ->assertJsonPath('data.0.title', 'Secure Research Document')
+            ->assertJsonPath('data.0.file_name', 'uuid-safe-document.pdf')
             ->assertJsonPath('data.0.category.id', $relations['category']->id)
             ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_legacy_document_without_stored_file_names_keeps_a_display_name(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        Document::create([
+            'title' => 'Legacy Document',
+            'drive_file_id' => 'legacy-drive-file',
+        ]);
+
+        $this->withToken($admin->createToken('list')->plainTextToken)
+            ->getJson('/api/admin/documents?search=Legacy')
+            ->assertOk()
+            ->assertJsonPath('data.0.file_name', 'Legacy Document')
+            ->assertJsonPath('data.0.title', 'Legacy Document');
+    }
+
+    public function test_document_index_searches_and_filters_rights_metadata(): void
+    {
+        [$admin, $payload, $relations] = $this->validPayload();
+        $token = $admin->createToken('documents')->plainTextToken;
+
+        $this->withToken($token)
+            ->post('/api/admin/documents', $payload, ['Accept' => 'application/json'])
+            ->assertCreated();
+
+        foreach (['cc_by', 'Attribution', 'مسموح استخدامه', 'open_access', 'متاح قانونيًا', 'example.com/secure-document', 'University Press', 'Science'] as $term) {
+            $this->withToken($token)
+                ->getJson('/api/admin/documents?search='.urlencode($term))
+                ->assertOk()
+                ->assertJsonPath('meta.total', 1);
+        }
+
+        $this->withToken($token)
+            ->getJson('/api/admin/documents?source_id='.$relations['source']->id
+                .'&category_id='.$relations['category']->id
+                .'&document_type_id='.$relations['documentType']->id
+                .'&license_type_id='.$relations['licenseType']->id
+                .'&rights_status_id='.$relations['rightsStatus']->id)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_license_and_rights_lookups_are_bilingual_and_searchable(): void
+    {
+        [$admin, , $relations] = $this->validPayload();
+        $token = $admin->createToken('lookups')->plainTextToken;
+
+        $this->withToken($token)
+            ->getJson('/api/admin/documents/lookups/license-types?search='.urlencode('مسموح استخدامه'))
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $relations['licenseType']->id)
+            ->assertJsonPath('data.0.name', 'مسموح استخدامه مع نسب المصدر - Attribution');
+
+        $this->withToken($token)
+            ->getJson('/api/admin/documents/lookups/rights-statuses?search=open_access')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $relations['rightsStatus']->id);
     }
 
     /**
@@ -252,14 +388,29 @@ class AdminDocumentManagementTest extends TestCase
         $country = Country::create(['name' => 'Egypt', 'code' => 'EG']);
         $author = Author::create(['name' => 'Document Author']);
         $contributor = Contributor::create(['name' => 'Document Contributor']);
+        $licenseType = LicenseType::create([
+            'code' => 'cc_by',
+            'name_ar' => 'مسموح استخدامه مع نسب المصدر',
+            'name_en' => 'Attribution',
+        ]);
+        $rightsStatus = RightsStatus::create([
+            'code' => 'open_access',
+            'name_ar' => 'متاح قانونيًا للجمهور',
+            'name_en' => 'Open Access',
+        ]);
         $payload = [
             'submission_id' => (string) Str::uuid(),
             'document_file' => UploadedFile::fake()->createWithContent('research.pdf', "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n"),
-            'file_name' => 'Secure Research Document',
+            'title' => 'Secure Research Document',
             'source_id' => $source->id,
             'magazine_id' => $magazine->id,
             'document_type_id' => $documentType->id,
             'doi' => '10.1234/secure-document',
+            'isbn' => '978-1-4028-9462-6',
+            'issn' => '2049-3630',
+            'url' => 'https://example.com/secure-document',
+            'license_type_id' => $licenseType->id,
+            'rights_status_id' => $rightsStatus->id,
             'language_id' => $language->id,
             'publish_year' => 2026,
             'publish_date' => '2026-04',
@@ -283,6 +434,8 @@ class AdminDocumentManagementTest extends TestCase
             'country',
             'author',
             'contributor',
+            'licenseType',
+            'rightsStatus',
         )];
     }
 }

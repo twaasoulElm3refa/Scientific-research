@@ -41,7 +41,6 @@ return [
         'redirect_uri' => env('GOOGLE_DRIVE_REDIRECT_URI'),
         'folder_id' => env('GOOGLE_DRIVE_FOLDER_ID'),
         'scopes' => env('GOOGLE_DRIVE_SCOPES', 'https://www.googleapis.com/auth/drive'),
-        'max_file_size_mb' => env('GOOGLE_DRIVE_MAX_FILE_SIZE_MB', 25),
     ],
 
 ];

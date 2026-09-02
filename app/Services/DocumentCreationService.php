@@ -29,25 +29,37 @@ class DocumentCreationService
         DB::beginTransaction();
 
         try {
-            $publicationMonth = CarbonImmutable::createFromFormat('!Y-m', $data['publish_date']);
-            $uploaded = $this->googleDrive->uploadFile($file, $data['file_name'], $publicationMonth);
+            $publicationMonth = isset($data['publish_date'])
+                ? CarbonImmutable::createFromFormat('!Y-m', $data['publish_date'])
+                : null;
+            $originalBaseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $uploaded = $this->googleDrive->uploadFile(
+                $file,
+                $originalBaseName,
+                $publicationMonth ?? CarbonImmutable::now(),
+            );
             $uploadedDriveFileId = $uploaded['id'];
 
             $document = Document::create([
                 'user_id' => $creator->id,
-                'source_id' => $data['source_id'],
-                'magazine_id' => $data['magazine_id'],
+                'source_id' => $data['source_id'] ?? null,
+                'magazine_id' => $data['magazine_id'] ?? null,
                 'document_type_id' => $data['document_type_id'],
                 'language_id' => $data['language_id'],
                 'category_id' => $data['category_id'],
-                'subcategory_id' => $data['subcategory_id'],
+                'subcategory_id' => $data['subcategory_id'] ?? null,
                 'specialization_id' => $data['specialization_id'] ?? null,
                 'country_id' => $data['country_id'] ?? null,
+                'license_type_id' => $data['license_type_id'] ?? null,
+                'rights_status_id' => $data['rights_status_id'] ?? null,
                 'submission_id' => $data['submission_id'],
-                'title' => $data['file_name'],
-                'doi' => $data['doi'],
+                'title' => $data['title'],
+                'doi' => $data['doi'] ?? null,
+                'isbn' => $data['isbn'] ?? null,
+                'issn' => $data['issn'] ?? null,
+                'url' => $data['url'] ?? null,
                 'publication_year' => $data['publish_year'] ?? null,
-                'publication_date' => $publicationMonth->toDateString(),
+                'publication_date' => $publicationMonth?->toDateString(),
                 'total_pages' => $data['pages_number'] ?? null,
                 'drive_file_id' => $uploaded['id'],
                 'drive_file_name' => $uploaded['name'],
@@ -143,6 +155,8 @@ class DocumentCreationService
             'subcategory:id,category_id,name',
             'specialization:id,subcategory_id,name',
             'country:id,name,code',
+            'licenseType:id,code,name_ar,name_en',
+            'rightsStatus:id,code,name_ar,name_en',
             'authors:id,name',
             'contributors:id,name',
         ];

@@ -26,6 +26,8 @@ class DocumentController extends Controller
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'subcategory_id' => ['nullable', 'integer', 'exists:subcategories,id'],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            'license_type_id' => ['nullable', 'integer', 'exists:license_types,id'],
+            'rights_status_id' => ['nullable', 'integer', 'exists:rights_statuses,id'],
             'sort' => ['nullable', 'in:title,publication_date,publication_year,created_at'],
             'direction' => ['nullable', 'in:asc,desc'],
             'per_page' => ['nullable', 'integer', 'between:1,100'],
@@ -41,6 +43,8 @@ class DocumentController extends Controller
             'subcategory:id,category_id,name',
             'specialization:id,subcategory_id,name',
             'country:id,name,code',
+            'licenseType:id,code,name_ar,name_en',
+            'rightsStatus:id,code,name_ar,name_en',
             'authors:id,name',
         ]);
 
@@ -48,8 +52,25 @@ class DocumentController extends Controller
             $term = '%'.mb_strtolower($filters['search']).'%';
             $query->where(function (Builder $query) use ($term) {
                 $query->whereRaw('LOWER(title) LIKE ?', [$term])
+                    ->orWhereRaw('LOWER(original_file_name) LIKE ?', [$term])
                     ->orWhereRaw('LOWER(doi) LIKE ?', [$term])
-                    ->orWhereHas('authors', fn (Builder $authors) => $authors->whereRaw('LOWER(name) LIKE ?', [$term]));
+                    ->orWhereRaw('LOWER(url) LIKE ?', [$term])
+                    ->orWhereHas('authors', fn (Builder $authors) => $authors->whereRaw('LOWER(name) LIKE ?', [$term]))
+                    ->orWhereHas('source', fn (Builder $source) => $source->whereRaw('LOWER(name) LIKE ?', [$term]))
+                    ->orWhereHas('category', fn (Builder $category) => $category->whereRaw('LOWER(name) LIKE ?', [$term]))
+                    ->orWhereHas('subcategory', fn (Builder $subcategory) => $subcategory->whereRaw('LOWER(name) LIKE ?', [$term]))
+                    ->orWhereHas('licenseType', fn (Builder $license) => $license->where(
+                        fn (Builder $names) => $names
+                            ->whereRaw('LOWER(code) LIKE ?', [$term])
+                            ->orWhereRaw('LOWER(name_ar) LIKE ?', [$term])
+                            ->orWhereRaw('LOWER(name_en) LIKE ?', [$term])
+                    ))
+                    ->orWhereHas('rightsStatus', fn (Builder $rights) => $rights->where(
+                        fn (Builder $names) => $names
+                            ->whereRaw('LOWER(code) LIKE ?', [$term])
+                            ->orWhereRaw('LOWER(name_ar) LIKE ?', [$term])
+                            ->orWhereRaw('LOWER(name_en) LIKE ?', [$term])
+                    ));
             });
         }
 
@@ -61,6 +82,8 @@ class DocumentController extends Controller
             'category_id',
             'subcategory_id',
             'country_id',
+            'license_type_id',
+            'rights_status_id',
         ] as $filter) {
             if (isset($filters[$filter])) {
                 $query->where($filter, $filters[$filter]);
