@@ -1,13 +1,11 @@
-<template>
+<!-- <template>
   <header class="bg-white shadow-lg py-3 mx-5 my-3 rounded-4xl mb-4" dir="rtl">
     <div class="container d-flex justify-content-between align-items-center position-relative">
 
-      <!-- اللوجو -->
       <div class="d-flex align-items-center">
         <img src="/images/logo3.png" alt="Logo" class="rounded-circle" style="width:80px; height:40px; object-fit:cover;">
       </div>
 
-      <!-- الروابط -->
       <nav class="d-none d-md-flex flex-grow-1 justify-content-center">
         <ul class="nav">
           <li v-for="link in links" :key="link.href" class="nav-item">
@@ -153,7 +151,6 @@ mounted() {
   background-color: #198754;
 }
 
-/* Hover line effect للروابط */
 .nav-hover {
   position: relative;
   overflow: hidden;
@@ -166,7 +163,7 @@ mounted() {
   right: 0;
   width: 0;
   height: 2px;
-  background-color: #28a745; /* الأخضر */
+  background-color: #28a745;
   transition: width 1s ease;
 }
 
@@ -176,8 +173,7 @@ mounted() {
   right: auto;
 }
 
-/* Dropdown صغير */
 .dropdown-menu.show {
   display: block;
 }
-</style>
+</style> -->

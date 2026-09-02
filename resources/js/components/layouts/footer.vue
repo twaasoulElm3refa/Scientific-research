@@ -1,9 +1,8 @@
-<template>
+<!-- <template>
   <footer class="bg-success text-white py-4">
     <div class="container">
       <div class="row">
 
-        <!-- Quick Links -->
         <div class="col-md-4 mb-4 mb-md-0">
           <h5 class="fw-bold mb-3">Quick Links</h5>
           <ul class="list-unstyled">
@@ -15,7 +14,6 @@
           </ul>
         </div>
 
-        <!-- Support & Contact -->
         <div class="col-md-4 mb-4 mb-md-0">
           <h5 class="fw-bold mb-3">Support & Contact</h5>
           <ul class="list-unstyled">
@@ -27,14 +25,12 @@
           </ul>
         </div>
 
-        <!-- Logo & Socials -->
         <div class="col-md-4 text-center text-md-end">
-          <!-- Logo -->
+
           <div class="mb-3">
             <img src="/images/logo3.png" alt="Logo" class="rounded-circle bg-white" style="width: 100px; height: 100px; object-fit: cover;">
           </div>
 
-          <!-- Social Icons -->
           <div class="mb-3">
             <a
               v-for="social in socials"
@@ -46,7 +42,6 @@
             ></a>
           </div>
 
-          <!-- Store Badges -->
           <div class="mb-3 d-flex justify-content-center justify-content-md-end gap-2">
             <a href="#" target="_blank">
               <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Google_Play_Store_badge_EN.svg/512px-Google_Play_Store_badge_EN.svg.png"
@@ -58,7 +53,6 @@
             </a>
           </div>
 
-          <!-- Copyright -->
           <p class="small opacity-75 mb-0">
             © 2025 مؤسسة عطاء جميع الحقوق محفوظة
           </p>
@@ -77,10 +71,7 @@ export default {
     return {
       quickLinks: [
         { label: 'Home', href: '/' },
-        // { label: 'All Courses', href: '#' },
-        // { label: 'Certificates', href: '#' },
         { label: 'Services', href: '#' },
-        // { label: 'Specialists', href: '#' },
       ],
 
       supportLinks: [
@@ -112,4 +103,4 @@ export default {
     }
   },
 }
-</script>
+</script> -->
