@@ -15,6 +15,7 @@
 export default {
   name: "App",
 
+
   computed: {
     showNavbar() {
       return !this.$route.meta.hideNavbar;
