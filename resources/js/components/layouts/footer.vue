@@ -1,4 +1,4 @@
-<!-- <template>
+<template>
   <footer class="bg-success text-white py-4">
     <div class="container">
       <div class="row">
@@ -103,4 +103,4 @@ export default {
     }
   },
 }
-</script> -->
+</script>

@@ -1,4 +1,4 @@
-<!-- <template>
+<template>
   <header class="bg-white shadow-lg py-3 mx-5 my-3 rounded-4xl mb-4" dir="rtl">
     <div class="container d-flex justify-content-between align-items-center position-relative">
 
@@ -176,4 +176,4 @@ mounted() {
 .dropdown-menu.show {
   display: block;
 }
-</style> -->
+</style>
