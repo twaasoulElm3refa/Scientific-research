@@ -27,6 +27,8 @@ Route::prefix('admin')->group(function () {
             ->middleware('throttle:30,1');
         Route::get('documents', [DocumentController::class, 'index']);
         Route::post('documents', [DocumentController::class, 'store'])->middleware('throttle:10,1');
+        Route::patch('documents/{document}', [DocumentController::class, 'update'])->middleware('throttle:30,1');
+        Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->middleware('throttle:30,1');
     });
 });
 

@@ -1,225 +1,222 @@
 <template>
-    <section class="documents-list">
-        <header class="documents-list__header">
-            <div>
-                <span>Documents</span>
-                <h2>All Documents</h2>
-                <p>Search and review documents stored in Google Drive.</p>
-            </div>
-            <RouterLink :to="{ name: 'admin.documents.create' }" class="documents-list__add">
-                <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                Add Document
-            </RouterLink>
-        </header>
+  <section class="documents-page" @click="activeMenuId = null">
+    <header class="page-header">
+      <div>
+        <div class="eyebrow"><span>Documents</span><i class="bi bi-chevron-right"></i><span>Library</span></div>
+        <div class="title-line"><h2>All Documents</h2><span v-if="meta.total" class="count">{{ meta.total.toLocaleString() }}</span></div>
+        <p>Search, review, and manage your organization’s document library in Google Drive.</p>
+      </div>
+      <div class="header-actions">
+        <RouterLink :to="{ name: 'admin.settings.google-drive' }" class="btn-ui btn-secondary desktop-action"><i class="bi bi-google"></i> Import from Drive</RouterLink>
+        <button class="btn-ui btn-secondary" :disabled="!documents.length" @click="exportDocuments"><i class="bi bi-download"></i><span class="desktop-action">Export</span></button>
+        <RouterLink :to="{ name: 'admin.documents.create' }" class="btn-ui btn-primary"><i class="bi bi-plus-lg"></i> Add Document</RouterLink>
+      </div>
+    </header>
 
-        <form class="documents-filters" @submit.prevent="loadDocuments(1)">
-            <div class="documents-filters__search">
-                <i class="bi bi-search" aria-hidden="true"></i>
-                <input v-model.trim="filters.search" type="search" placeholder="Search documents and rights metadata..." />
-            </div>
-            <select v-model="filters.source_id" aria-label="Filter by source" @change="loadDocuments(1)">
-                <option value="">All sources</option>
-                <option v-for="item in lookups.sources" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-            <select v-model="filters.category_id" aria-label="Filter by category" @change="loadDocuments(1)">
-                <option value="">All categories</option>
-                <option v-for="item in lookups.categories" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-            <select v-model="filters.document_type_id" aria-label="Filter by document type" @change="loadDocuments(1)">
-                <option value="">All types</option>
-                <option v-for="item in lookups.documentTypes" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-            <select v-model="filters.language_id" aria-label="Filter by language" @change="loadDocuments(1)">
-                <option value="">All languages</option>
-                <option v-for="item in lookups.languages" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-            <select v-model="filters.license_type_id" aria-label="Filter by license type" @change="loadDocuments(1)">
-                <option value="">All licenses</option>
-                <option v-for="item in lookups.licenseTypes" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-            <select v-model="filters.rights_status_id" aria-label="Filter by rights status" @change="loadDocuments(1)">
-                <option value="">All rights statuses</option>
-                <option v-for="item in lookups.rightsStatuses" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-            <select v-model="filters.sorting" aria-label="Sort documents" @change="loadDocuments(1)">
-                <option value="created_at:desc">Newest first</option>
-                <option value="created_at:asc">Oldest first</option>
-                <option value="title:asc">File name A–Z</option>
-                <option value="publication_date:desc">Latest publication</option>
-            </select>
-            <button type="submit">Search</button>
-        </form>
+    <div class="toolbar-card">
+      <form class="search-row" role="search" @submit.prevent="loadDocuments(1)">
+        <label class="search-field" for="document-search">
+          <i class="bi bi-search"></i>
+          <input id="document-search" ref="searchInput" v-model="filters.search" type="search" autocomplete="off" placeholder="Search filename, author, DOI, source, or rights metadata…" />
+          <kbd>{{ shortcutLabel }} K</kbd>
+        </label>
+        <button class="btn-ui btn-primary search-submit" :disabled="loading">Search</button>
+        <button type="button" class="btn-ui btn-secondary filter-toggle" :aria-expanded="advancedOpen" @click="advancedOpen = !advancedOpen">
+          <i class="bi bi-sliders2"></i> Filters <span v-if="activeFilterCount">{{ activeFilterCount }}</span><i class="bi" :class="advancedOpen ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+        </button>
+      </form>
 
-        <div v-if="errorMessage" class="documents-list__error" role="alert">{{ errorMessage }}</div>
+      <div class="quick-filters">
+        <label v-for="filter in quickFilterConfig" :key="filter.key" class="select-chip">
+          <span>{{ filter.label }}</span>
+          <select v-model="filters[filter.key]" :aria-label="`Filter by ${filter.label}`" @change="loadDocuments(1)">
+            <option value="">{{ filter.allLabel }}</option>
+            <option v-for="item in lookups[filter.lookup]" :key="item.id" :value="String(item.id)">{{ item.name }}</option>
+          </select>
+          <i class="bi bi-chevron-down"></i>
+        </label>
+        <span class="divider"></span>
+        <label class="sort-control"><span>Sort</span><select v-model="filters.sorting" @change="loadDocuments(1)"><option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option><option value="title:asc">File name A–Z</option><option value="publication_date:desc">Latest publication</option></select><i class="bi bi-chevron-down"></i></label>
+      </div>
 
-        <div class="documents-table-wrap">
-            <table class="documents-table">
-                <thead>
-                    <tr>
-                        <th>File Name</th>
-                        <th>Source</th>
-                        <th>Document Type</th>
-                        <th>Author</th>
-                        <th>License Type</th>
-                        <th>Rights Status</th>
-                        <th>DOI</th>
-                        <th>URL</th>
-                        <th>Upload Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-if="loading">
-                        <td colspan="9" class="documents-table__state">
-                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-                            Loading documents...
-                        </td>
-                    </tr>
-                    <tr v-else-if="documents.length === 0">
-                        <td colspan="9" class="documents-table__state">No documents found.</td>
-                    </tr>
-                    <tr v-for="document in documents" v-else :key="document.id">
-                        <td>
-                            <strong>{{ document.file_name }}</strong>
-                            <a v-if="document.drive.web_view_link" :href="document.drive.web_view_link" target="_blank" rel="noopener noreferrer" class="documents-table__drive-link">Open file</a>
-                        </td>
-                        <td>{{ document.source?.name || "—" }}</td>
-                        <td>{{ document.document_type?.name || "—" }}</td>
-                        <td><span class="documents-table__authors">{{ authorNames(document) }}</span></td>
-                        <td>{{ document.license_type?.name || "—" }}</td>
-                        <td>{{ document.rights_status?.name || "—" }}</td>
-                        <td>{{ document.doi || "—" }}</td>
-                        <td>
-                            <a v-if="document.url" :href="document.url" target="_blank" rel="noopener noreferrer" class="documents-table__url">{{ document.url }}</a>
-                            <span v-else>—</span>
-                        </td>
-                        <td>{{ formatDate(document.created_at) }}</td>
-                    </tr>
-                </tbody>
-            </table>
+      <Transition name="filter-panel">
+        <div v-if="advancedOpen" class="advanced-panel">
+          <div class="advanced-grid">
+            <label class="field"><span>Language</span><select v-model="filters.language_id" @change="loadDocuments(1)"><option value="">Any language</option><option v-for="item in lookups.languages" :key="item.id" :value="String(item.id)">{{ item.name }}</option></select></label>
+            <label class="field"><span>License type</span><select v-model="filters.license_type_id" @change="loadDocuments(1)"><option value="">Any license</option><option v-for="item in lookups.licenseTypes" :key="item.id" :value="String(item.id)">{{ item.name }}</option></select></label>
+            <label class="field"><span>Rights status</span><select v-model="filters.rights_status_id" @change="loadDocuments(1)"><option value="">Any rights status</option><option v-for="item in lookups.rightsStatuses" :key="item.id" :value="String(item.id)">{{ item.name }}</option></select></label>
+            <label class="field"><span>Publication year</span><input v-model="filters.publication_year" type="number" min="1000" :max="new Date().getFullYear() + 1" placeholder="Any year" @keyup.enter="loadDocuments(1)" /></label>
+          </div>
+          <div class="advanced-footer"><span>Filters apply to the entire document library.</span><button class="text-btn" @click="loadDocuments(1)">Apply filters</button></div>
         </div>
+      </Transition>
 
-        <footer v-if="meta.total" class="documents-pagination">
-            <span>Page {{ meta.current_page }} of {{ meta.last_page }} · {{ meta.total }} documents</span>
-            <div>
-                <button type="button" :disabled="meta.current_page <= 1 || loading" @click="loadDocuments(meta.current_page - 1)">Previous</button>
-                <button type="button" :disabled="meta.current_page >= meta.last_page || loading" @click="loadDocuments(meta.current_page + 1)">Next</button>
+      <div v-if="activeTags.length || hasSavedSearch" class="filter-meta">
+        <div class="active-tags">
+          <button v-for="tag in activeTags" :key="tag.key" class="active-tag" :title="`Remove ${tag.label}`" @click="removeFilter(tag.key)"><span>{{ tag.label }}:</span> {{ tag.value }} <i class="bi bi-x"></i></button>
+          <button v-if="activeTags.length" class="clear-btn" @click="clearFilters">Clear filters</button>
+        </div>
+        <div class="saved-actions">
+          <button v-if="hasSavedSearch" class="text-btn" @click="restoreSearch"><i class="bi bi-clock-history"></i> Restore saved</button>
+          <button v-if="activeTags.length" class="text-btn" @click="saveSearch"><i class="bi bi-bookmark"></i> Save search</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="errorMessage" class="error-state" role="alert">
+      <span><i class="bi bi-exclamation-triangle"></i></span><div><strong>We couldn’t load the document library</strong><p>{{ errorMessage }}</p></div><button class="btn-ui btn-secondary" @click="loadDocuments(meta.current_page || 1)">Try again</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-topbar">
+        <div><strong>Document library</strong><small>{{ loading ? 'Refreshing…' : `${meta.total.toLocaleString()} total documents` }}</small></div>
+        <div class="table-actions">
+          <Transition name="bulk"><div v-if="selectedIds.length" class="bulk-actions"><span><b>{{ selectedIds.length }}</b> selected</span><button @click="downloadSelected"><i class="bi bi-download"></i> Download</button><button class="danger-text" @click="confirmDelete(selectedDocuments)"><i class="bi bi-trash3"></i> Delete</button><button aria-label="Clear selection" @click="selectedIds = []"><i class="bi bi-x-lg"></i></button></div></Transition>
+          <button class="icon-btn" title="Refresh documents" :disabled="loading" @click="loadDocuments(meta.current_page)"><i class="bi bi-arrow-clockwise" :class="{ spin: loading }"></i></button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="documents-table">
+          <caption class="sr-only">All documents stored in Google Drive</caption>
+          <colgroup><col class="col-check"><col class="col-document"><col class="col-source"><col class="col-type"><col class="col-author"><col class="col-rights"><col class="col-doi"><col class="col-actions"></colgroup>
+          <thead><tr><th class="checkbox-cell"><input type="checkbox" :checked="allVisibleSelected" :indeterminate.prop="someVisibleSelected" aria-label="Select all visible documents" @change="toggleAllVisible"></th><th>Document</th><th>Source</th><th>Type</th><th>Author</th><th>Rights &amp; license</th><th>DOI</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody v-if="loading">
+            <tr v-for="row in 6" :key="row" class="skeleton-row"><td><i class="skeleton sk-check"></i></td><td><div class="sk-document"><i class="skeleton sk-icon"></i><div><i class="skeleton sk-wide"></i><i class="skeleton sk-medium"></i></div></div></td><td><i class="skeleton sk-medium"></i></td><td><i class="skeleton sk-tag"></i></td><td><i class="skeleton sk-medium"></i></td><td><i class="skeleton sk-wide"></i></td><td><i class="skeleton sk-medium"></i></td><td><i class="skeleton sk-check"></i></td></tr>
+          </tbody>
+          <tbody v-else-if="documents.length">
+            <tr v-for="item in documents" :key="item.id" class="document-row" :class="{ selected: selectedIds.includes(item.id) }" tabindex="0" @click="openPreview(item)" @keydown.enter="openPreview(item)">
+              <td class="checkbox-cell" @click.stop><input v-model="selectedIds" type="checkbox" :value="item.id" :aria-label="`Select ${item.file_name}`"></td>
+              <td><div class="document-cell"><span class="file-icon" :class="`file-${fileKind(item)}`"><i :class="fileIcon(item)"></i><small>{{ fileExtension(item) }}</small></span><div class="document-info"><div class="document-name"><strong :title="item.file_name">{{ item.file_name }}</strong><button title="Quick preview" @click.stop="openPreview(item)"><i class="bi bi-eye"></i></button></div><div class="document-meta"><span>{{ formatFileSize(item.drive?.file_size) }}</span><b>•</b><span>Uploaded {{ formatDate(item.created_at) }}</span></div></div></div></td>
+              <td><span v-if="item.source" class="source-badge" :title="item.source.name"><b>{{ initials(item.source.name) }}</b>{{ item.source.name }}</span><span v-else class="muted">Not assigned</span></td>
+              <td><span v-if="item.document_type" class="type-badge" :class="typeTone(item.document_type.name)">{{ item.document_type.name }}</span><span v-else class="muted">—</span></td>
+              <td><span class="truncate" :title="authorNames(item)">{{ authorNames(item) }}</span></td>
+              <td><div class="rights-cell"><span v-if="item.license_type" class="license-badge" :title="item.license_type.name"><i class="bi bi-patch-check"></i>{{ licenseLabel(item.license_type) }}</span><span class="rights-status" :class="rightsTone(item.rights_status?.code)"><i></i>{{ rightsLabel(item.rights_status) }}</span></div></td>
+              <td><a v-if="item.doi" class="doi-link" :href="doiUrl(item.doi)" target="_blank" rel="noopener" :title="item.doi" @click.stop>{{ item.doi }} <i class="bi bi-arrow-up-right"></i></a><span v-else class="muted">No DOI</span></td>
+              <td class="actions-cell" @click.stop><button class="row-menu-btn" :class="{ active: activeMenuId === item.id }" :aria-label="`Actions for ${item.file_name}`" @click.stop="openRowMenu($event, item)"><i class="bi bi-three-dots"></i></button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="!loading && !documents.length && !errorMessage" class="empty-state">
+        <div class="empty-illustration"><span class="sheet back"></span><span class="sheet front"><i class="bi bi-file-earmark-text"></i><b></b><b></b><b></b></span><span class="search-dot"><i class="bi bi-search"></i></span></div>
+        <h3>{{ activeTags.length ? 'No documents match these filters' : 'Your document library is empty' }}</h3><p>{{ activeTags.length ? 'Try removing a filter or searching for a different term.' : 'Add your first document to start building a searchable knowledge library.' }}</p>
+        <button v-if="activeTags.length" class="btn-ui btn-secondary" @click="clearFilters">Clear all filters</button><RouterLink v-else :to="{ name: 'admin.documents.create' }" class="btn-ui btn-primary"><i class="bi bi-plus-lg"></i> Add first document</RouterLink>
+      </div>
+
+      <footer v-if="!loading && meta.total" class="pagination-ui">
+        <div class="pagination-summary"><span>Showing <b>{{ firstItem }}</b>–<b>{{ lastItem }}</b> of <b>{{ meta.total.toLocaleString() }}</b></span><label>Rows per page <select v-model.number="perPage" @change="loadDocuments(1)"><option :value="10">10</option><option :value="15">15</option><option :value="25">25</option><option :value="50">50</option></select></label></div>
+        <nav class="pagination-controls" aria-label="Document pagination"><button :disabled="meta.current_page <= 1" @click="loadDocuments(meta.current_page - 1)"><i class="bi bi-chevron-left"></i><span>Previous</span></button><button v-for="page in visiblePages" :key="page" :class="{ active: page === meta.current_page }" :aria-current="page === meta.current_page ? 'page' : undefined" @click="loadDocuments(page)">{{ page }}</button><button :disabled="meta.current_page >= meta.last_page" @click="loadDocuments(meta.current_page + 1)"><span>Next</span><i class="bi bi-chevron-right"></i></button></nav>
+      </footer>
+    </div>
+
+    <Teleport to="body">
+      <Transition name="menu-pop"><div v-if="activeMenuDocument" class="row-menu" :style="menuStyle" role="menu" @click.stop>
+        <button @click="openPreview(activeMenuDocument)"><i class="bi bi-layout-sidebar-inset-reverse"></i> View details</button>
+        <a v-if="activeMenuDocument.drive?.web_view_link" :href="activeMenuDocument.drive.web_view_link" target="_blank" rel="noopener" @click="activeMenuId = null"><i class="bi bi-box-arrow-up-right"></i> Open file</a>
+        <button @click="startEditing(activeMenuDocument)"><i class="bi bi-pencil-square"></i> Edit metadata</button>
+        <a :href="downloadUrl(activeMenuDocument)" target="_blank" rel="noopener" @click="activeMenuId = null"><i class="bi bi-download"></i> Download</a>
+        <hr><button class="danger-text" @click="confirmDelete([activeMenuDocument])"><i class="bi bi-trash3"></i> Delete document</button>
+      </div></Transition>
+
+      <Transition name="drawer"><div v-if="previewDocument" class="drawer-layer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+        <button class="overlay" aria-label="Close preview" @click="closeDrawer"></button>
+        <aside class="document-drawer">
+          <header class="drawer-header"><div><span>{{ editing ? 'Edit metadata' : 'Document preview' }}</span><h3 id="drawer-title" :title="previewDocument.file_name">{{ previewDocument.file_name }}</h3></div><button class="icon-btn" aria-label="Close preview" @click="closeDrawer"><i class="bi bi-x-lg"></i></button></header>
+          <template v-if="!editing">
+            <div class="preview-area"><iframe v-if="canEmbed(previewDocument)" :src="previewUrl(previewDocument)" :title="`Preview of ${previewDocument.file_name}`"></iframe><div v-else class="preview-fallback"><span class="file-icon large" :class="`file-${fileKind(previewDocument)}`"><i :class="fileIcon(previewDocument)"></i><small>{{ fileExtension(previewDocument) }}</small></span><strong>Preview unavailable</strong><p>Open the file in Google Drive to review its contents.</p><a v-if="previewDocument.drive?.web_view_link" :href="previewDocument.drive.web_view_link" target="_blank" class="btn-ui btn-secondary">Open in Drive <i class="bi bi-arrow-up-right"></i></a></div></div>
+            <div class="drawer-content"><div class="drawer-heading"><div><strong>Metadata</strong><p>Document details and access information</p></div><button class="text-btn" @click="startEditing(previewDocument)"><i class="bi bi-pencil"></i> Edit</button></div>
+              <dl class="metadata-grid"><div class="wide"><dt>Title</dt><dd>{{ previewDocument.title || '—' }}</dd></div><div><dt>Source</dt><dd>{{ previewDocument.source?.name || 'Not assigned' }}</dd></div><div><dt>Type</dt><dd>{{ previewDocument.document_type?.name || '—' }}</dd></div><div><dt>Category</dt><dd>{{ previewDocument.category?.name || '—' }}</dd></div><div><dt>Language</dt><dd>{{ previewDocument.language?.name || '—' }}</dd></div><div class="wide"><dt>Authors</dt><dd>{{ authorNames(previewDocument) }}</dd></div><div><dt>Publication</dt><dd>{{ previewDocument.publish_year || previewDocument.publish_date || '—' }}</dd></div><div><dt>Pages</dt><dd>{{ previewDocument.pages_number || '—' }}</dd></div><div class="wide"><dt>DOI</dt><dd>{{ previewDocument.doi || 'No DOI assigned' }}</dd></div></dl>
+              <div class="rights-card"><span><i class="bi bi-shield-check"></i></span><div><small>Rights status</small><strong>{{ rightsLabel(previewDocument.rights_status) }}</strong><p>{{ licenseLabel(previewDocument.license_type) }}</p></div></div>
             </div>
-        </footer>
-    </section>
+          </template>
+          <form v-else class="edit-form" @submit.prevent="saveMetadata">
+            <label class="field wide"><span>Document title</span><input v-model.trim="editForm.title" required maxlength="500"></label>
+            <label v-for="field in editSelectConfig" :key="field.key" class="field"><span>{{ field.label }}</span><select v-model="editForm[field.key]" :required="field.required"><option value="" :disabled="field.required">{{ field.required ? `Select ${field.label.toLowerCase()}` : 'Not assigned' }}</option><option v-for="item in lookups[field.lookup]" :key="item.id" :value="String(item.id)">{{ item.name }}</option></select></label>
+            <label class="field"><span>DOI</span><input v-model.trim="editForm.doi" placeholder="10.xxxx/…"></label><label class="field"><span>Publication year</span><input v-model="editForm.publish_year" type="number" min="1000" :max="new Date().getFullYear() + 1"></label><label class="field wide"><span>Source URL</span><input v-model.trim="editForm.url" type="url" placeholder="https://"></label>
+            <p v-if="editError" class="edit-error">{{ editError }}</p><footer class="edit-footer"><button type="button" class="btn-ui btn-secondary" :disabled="savingMetadata" @click="editing = false">Cancel</button><button class="btn-ui btn-primary" :disabled="savingMetadata"><span v-if="savingMetadata" class="spinner-border spinner-border-sm"></span>{{ savingMetadata ? 'Saving…' : 'Save changes' }}</button></footer>
+          </form>
+          <footer v-if="!editing" class="drawer-footer"><button class="btn-ui btn-secondary danger-text" @click="confirmDelete([previewDocument])"><i class="bi bi-trash3"></i> Delete</button><a v-if="previewDocument.drive?.web_view_link" :href="previewDocument.drive.web_view_link" target="_blank" rel="noopener" class="btn-ui btn-primary">Open in Drive <i class="bi bi-arrow-up-right"></i></a></footer>
+        </aside>
+      </div></Transition>
+
+      <Transition name="modal"><div v-if="deleteDialog.open" class="modal-layer" role="dialog" aria-modal="true" aria-labelledby="delete-title"><button class="overlay" aria-label="Cancel deletion" @click="closeDeleteDialog"></button><div class="confirm-dialog"><span class="delete-icon"><i class="bi bi-trash3"></i></span><h3 id="delete-title">Delete {{ deleteDialog.documents.length > 1 ? `${deleteDialog.documents.length} documents` : 'document' }}?</h3><p>This permanently removes {{ deleteDialog.documents.length > 1 ? 'these files' : `“${deleteDialog.documents[0]?.file_name}”` }} from the library and Google Drive. This action cannot be undone.</p><div><button class="btn-ui btn-secondary" :disabled="deleteDialog.deleting" @click="closeDeleteDialog">Cancel</button><button class="btn-ui btn-danger" :disabled="deleteDialog.deleting" @click="deleteDocuments"><span v-if="deleteDialog.deleting" class="spinner-border spinner-border-sm"></span>{{ deleteDialog.deleting ? 'Deleting…' : 'Delete permanently' }}</button></div></div></div></Transition>
+      <Transition name="toast"><div v-if="toastMessage" class="toast-ui" role="status"><i class="bi bi-check-circle-fill"></i>{{ toastMessage }}</div></Transition>
+    </Teleport>
+  </section>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import api from "../../../services/api";
 
-const documents = ref([]);
-const loading = ref(true);
-const errorMessage = ref("");
-const meta = reactive({ current_page: 1, last_page: 1, total: 0 });
-const filters = reactive({
-    search: "",
-    source_id: "",
-    category_id: "",
-    document_type_id: "",
-    language_id: "",
-    license_type_id: "",
-    rights_status_id: "",
-    sorting: "created_at:desc",
-});
+const SAVED_SEARCH_KEY = "admin.documents.saved-search";
+const documents = ref([]), loading = ref(true), errorMessage = ref(""), searchInput = ref(null), advancedOpen = ref(false), selectedIds = ref([]), perPage = ref(15), activeMenuId = ref(null), previewDocument = ref(null), editing = ref(false), savingMetadata = ref(false), editError = ref(""), toastMessage = ref("");
+let toastTimer;
+const menuPosition = reactive({ top: 0, left: 0 });
+const meta = reactive({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0 });
+const filters = reactive({ search: "", source_id: "", category_id: "", document_type_id: "", language_id: "", license_type_id: "", rights_status_id: "", publication_year: "", sorting: "created_at:desc" });
 const lookups = reactive({ sources: [], categories: [], documentTypes: [], languages: [], licenseTypes: [], rightsStatuses: [] });
-
-const fetchLookup = async (type) => {
-    const response = await api.get(`/admin/documents/lookups/${type}`, { params: { per_page: 100 } });
-    return response.data.data;
-};
-
-const loadDocuments = async (page = 1) => {
-    loading.value = true;
-    errorMessage.value = "";
-    const [sort, direction] = filters.sorting.split(":");
-
-    try {
-        const response = await api.get("/admin/documents", {
-            params: {
-                page,
-                per_page: 15,
-                search: filters.search || undefined,
-                source_id: filters.source_id || undefined,
-                category_id: filters.category_id || undefined,
-                document_type_id: filters.document_type_id || undefined,
-                language_id: filters.language_id || undefined,
-                license_type_id: filters.license_type_id || undefined,
-                rights_status_id: filters.rights_status_id || undefined,
-                sort,
-                direction,
-            },
-        });
-        documents.value = response.data.data;
-        Object.assign(meta, response.data.meta);
-    } catch (error) {
-        errorMessage.value = error.response?.data?.message || "Documents could not be loaded.";
-    } finally {
-        loading.value = false;
-    }
-};
-
-const authorNames = (document) => {
-    const names = document.authors.map((author) => author.name);
-    if (names.length <= 3) return names.join(", ") || "—";
-    return `${names.slice(0, 3).join(", ")} +${names.length - 3}`;
-};
-
-const formatDate = (value) => value
-    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value))
-    : "—";
-
-onMounted(async () => {
-    try {
-        const [sources, categories, documentTypes, languages, licenseTypes, rightsStatuses] = await Promise.all([
-            fetchLookup("sources"),
-            fetchLookup("categories"),
-            fetchLookup("document-types"),
-            fetchLookup("languages"),
-            fetchLookup("license-types"),
-            fetchLookup("rights-statuses"),
-        ]);
-        Object.assign(lookups, { sources, categories, documentTypes, languages, licenseTypes, rightsStatuses });
-    } catch (error) {
-        errorMessage.value = error.response?.data?.message || "Filter data could not be loaded.";
-    }
-    await loadDocuments();
-});
+const editForm = reactive({ title: "", source_id: "", document_type_id: "", category_id: "", language_id: "", license_type_id: "", rights_status_id: "", doi: "", publish_year: "", url: "" });
+const deleteDialog = reactive({ open: false, deleting: false, documents: [] });
+const hasSavedSearch = ref(Boolean(localStorage.getItem(SAVED_SEARCH_KEY)));
+const quickFilterConfig = [{ key: "source_id", label: "Source", allLabel: "All sources", lookup: "sources" }, { key: "document_type_id", label: "Type", allLabel: "All types", lookup: "documentTypes" }, { key: "category_id", label: "Category", allLabel: "All categories", lookup: "categories" }];
+const editSelectConfig = [{ key: "source_id", label: "Source", lookup: "sources", required: false }, { key: "document_type_id", label: "Document type", lookup: "documentTypes", required: true }, { key: "category_id", label: "Category", lookup: "categories", required: true }, { key: "language_id", label: "Language", lookup: "languages", required: true }, { key: "license_type_id", label: "License type", lookup: "licenseTypes", required: false }, { key: "rights_status_id", label: "Rights status", lookup: "rightsStatuses", required: true }];
+const lookupName = (list, id) => list.find(item => String(item.id) === String(id))?.name || id;
+const activeTags = computed(() => [["search", "Search", filters.search], ["source_id", "Source", filters.source_id && lookupName(lookups.sources, filters.source_id)], ["document_type_id", "Type", filters.document_type_id && lookupName(lookups.documentTypes, filters.document_type_id)], ["category_id", "Category", filters.category_id && lookupName(lookups.categories, filters.category_id)], ["language_id", "Language", filters.language_id && lookupName(lookups.languages, filters.language_id)], ["license_type_id", "License", filters.license_type_id && lookupName(lookups.licenseTypes, filters.license_type_id)], ["rights_status_id", "Rights", filters.rights_status_id && lookupName(lookups.rightsStatuses, filters.rights_status_id)], ["publication_year", "Year", filters.publication_year]].filter(([, , value]) => value).map(([key, label, value]) => ({ key, label, value })));
+const activeFilterCount = computed(() => activeTags.value.length), selectedDocuments = computed(() => documents.value.filter(item => selectedIds.value.includes(item.id))), allVisibleSelected = computed(() => documents.value.length > 0 && documents.value.every(item => selectedIds.value.includes(item.id))), someVisibleSelected = computed(() => !allVisibleSelected.value && documents.value.some(item => selectedIds.value.includes(item.id))), activeMenuDocument = computed(() => documents.value.find(item => item.id === activeMenuId.value) || null), menuStyle = computed(() => ({ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` })), shortcutLabel = computed(() => navigator.platform?.toLowerCase().includes("mac") ? "⌘" : "Ctrl"), firstItem = computed(() => meta.from || ((meta.current_page - 1) * perPage.value + 1)), lastItem = computed(() => meta.to || Math.min(meta.current_page * perPage.value, meta.total));
+const visiblePages = computed(() => { const total = meta.last_page; if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1); let start = Math.max(1, meta.current_page - 2), end = Math.min(total, start + 4); start = Math.max(1, end - 4); return Array.from({ length: end - start + 1 }, (_, i) => start + i); });
+const fetchLookup = async type => (await api.get(`/admin/documents/lookups/${type}`, { params: { per_page: 100 } })).data.data;
+const loadDocuments = async (page = 1) => { loading.value = true; errorMessage.value = ""; activeMenuId.value = null; const [sort, direction] = filters.sorting.split(":"); try { const { data } = await api.get("/admin/documents", { params: { page, per_page: perPage.value, search: filters.search || undefined, source_id: filters.source_id || undefined, category_id: filters.category_id || undefined, document_type_id: filters.document_type_id || undefined, language_id: filters.language_id || undefined, license_type_id: filters.license_type_id || undefined, rights_status_id: filters.rights_status_id || undefined, publication_year: filters.publication_year || undefined, sort, direction } }); documents.value = data.data; Object.assign(meta, data.meta); selectedIds.value = selectedIds.value.filter(id => documents.value.some(item => item.id === id)); } catch (error) { documents.value = []; errorMessage.value = error.response?.data?.message || "Check your connection and try again."; } finally { loading.value = false; } };
+const removeFilter = key => { filters[key] = ""; loadDocuments(1); };
+const clearFilters = () => { Object.assign(filters, { search: "", source_id: "", category_id: "", document_type_id: "", language_id: "", license_type_id: "", rights_status_id: "", publication_year: "", sorting: "created_at:desc" }); loadDocuments(1); };
+const saveSearch = () => { localStorage.setItem(SAVED_SEARCH_KEY, JSON.stringify({ ...filters })); hasSavedSearch.value = true; showToast("Search saved to this browser"); };
+const restoreSearch = () => { try { Object.assign(filters, JSON.parse(localStorage.getItem(SAVED_SEARCH_KEY))); advancedOpen.value = true; loadDocuments(1); } catch { localStorage.removeItem(SAVED_SEARCH_KEY); hasSavedSearch.value = false; } };
+const toggleAllVisible = () => { selectedIds.value = allVisibleSelected.value ? selectedIds.value.filter(id => !documents.value.some(item => item.id === id)) : [...new Set([...selectedIds.value, ...documents.value.map(item => item.id)])]; };
+const openRowMenu = (event, item) => { if (activeMenuId.value === item.id) return activeMenuId.value = null; const rect = event.currentTarget.getBoundingClientRect(); menuPosition.top = Math.min(rect.bottom + 6, window.innerHeight - 270); menuPosition.left = Math.max(12, Math.min(rect.right - 210, window.innerWidth - 222)); activeMenuId.value = item.id; };
+const openPreview = item => { activeMenuId.value = null; previewDocument.value = item; editing.value = false; window.document.body.classList.add("drawer-open"); };
+const closeDrawer = () => { if (savingMetadata.value) return; previewDocument.value = null; editing.value = false; window.document.body.classList.remove("drawer-open"); };
+const startEditing = item => { previewDocument.value = item; editing.value = true; editError.value = ""; Object.assign(editForm, { title: item.title || item.file_name || "", source_id: item.source?.id ? String(item.source.id) : "", document_type_id: item.document_type?.id ? String(item.document_type.id) : "", category_id: item.category?.id ? String(item.category.id) : "", language_id: item.language?.id ? String(item.language.id) : "", license_type_id: item.license_type?.id ? String(item.license_type.id) : "", rights_status_id: item.rights_status?.id ? String(item.rights_status.id) : "", doi: item.doi || "", publish_year: item.publish_year || "", url: item.url || "" }); activeMenuId.value = null; window.document.body.classList.add("drawer-open"); };
+const saveMetadata = async () => { savingMetadata.value = true; editError.value = ""; try { const payload = Object.fromEntries(Object.entries(editForm).map(([key, value]) => [key, value === "" ? null : value])); const { data } = await api.patch(`/admin/documents/${previewDocument.value.id}`, payload); const index = documents.value.findIndex(item => item.id === data.document.id); if (index !== -1) documents.value[index] = data.document; previewDocument.value = data.document; editing.value = false; showToast("Document metadata updated"); } catch (error) { const errors = error.response?.data?.errors; editError.value = errors ? Object.values(errors).flat()[0] : error.response?.data?.message || "Metadata could not be saved."; } finally { savingMetadata.value = false; } };
+const confirmDelete = items => { activeMenuId.value = null; deleteDialog.documents = [...items]; deleteDialog.open = true; };
+const closeDeleteDialog = () => { if (!deleteDialog.deleting) { deleteDialog.open = false; deleteDialog.documents = []; } };
+const deleteDocuments = async () => { deleteDialog.deleting = true; try { await Promise.all(deleteDialog.documents.map(item => api.delete(`/admin/documents/${item.id}`))); const ids = deleteDialog.documents.map(item => item.id), count = ids.length; selectedIds.value = selectedIds.value.filter(id => !ids.includes(id)); if (previewDocument.value && ids.includes(previewDocument.value.id)) closeDrawer(); deleteDialog.open = false; deleteDialog.documents = []; showToast(`${count} document${count === 1 ? "" : "s"} deleted`); await loadDocuments(documents.value.length === count && meta.current_page > 1 ? meta.current_page - 1 : meta.current_page); } catch (error) { deleteDialog.open = false; errorMessage.value = error.response?.data?.message || "The selected documents could not be deleted."; } finally { deleteDialog.deleting = false; } };
+const authorNames = item => { const names = (item.authors || []).map(author => author.name); return names.length > 3 ? `${names.slice(0, 3).join(", ")} +${names.length - 3}` : names.join(", ") || "Not assigned"; };
+const formatDate = value => value ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value)) : "—";
+const formatFileSize = bytes => { if (bytes == null) return "Size unavailable"; if (!bytes) return "0 KB"; const units = ["B", "KB", "MB", "GB"], index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), 3); return `${(bytes / 1024 ** index).toFixed(index > 1 ? 1 : 0)} ${units[index]}`; };
+const fileExtension = item => (item.drive?.file_extension || item.file_name?.split(".").pop() || "FILE").toUpperCase().slice(0, 5), fileKind = item => ["pdf", "docx", "pptx", "txt"].includes(fileExtension(item).toLowerCase()) ? fileExtension(item).toLowerCase() : "file", fileIcon = item => ({ pdf: "bi bi-file-earmark-pdf-fill", docx: "bi bi-file-earmark-word-fill", pptx: "bi bi-file-earmark-slides-fill", txt: "bi bi-file-earmark-text-fill" }[fileKind(item)] || "bi bi-file-earmark-fill"), initials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join("").toUpperCase(), licenseLabel = license => license?.code?.replaceAll("_", " ").toUpperCase() || license?.name_en || "No license assigned", rightsLabel = rights => rights?.name_en || rights?.name || "Rights not set";
+const typeTone = type => { const value = type.toLowerCase(); return value.includes("research") ? "blue" : value.includes("book") ? "violet" : value.includes("report") ? "amber" : value.includes("article") ? "green" : "gray"; }, rightsTone = (code = "") => code.toLowerCase().includes("open") ? "open" : code.toLowerCase().includes("copyright") ? "restricted" : "neutral", doiUrl = doi => `https://doi.org/${doi}`, canEmbed = item => fileKind(item) === "pdf" && Boolean(item.drive?.web_view_link), previewUrl = item => item.drive.web_view_link.replace(/\/view(?:\?.*)?$/, "/preview"), downloadUrl = item => item.drive?.file_id ? `https://drive.google.com/uc?export=download&id=${encodeURIComponent(item.drive.file_id)}` : item.drive?.web_view_link || item.url || "#";
+const downloadSelected = () => selectedDocuments.value.forEach((item, index) => window.setTimeout(() => window.open(downloadUrl(item), "_blank", "noopener,noreferrer"), index * 180));
+const exportDocuments = () => { const rows = [["File name", "Source", "Document type", "Authors", "License", "Rights status", "DOI", "Upload date"], ...documents.value.map(item => [item.file_name, item.source?.name, item.document_type?.name, authorNames(item), licenseLabel(item.license_type), rightsLabel(item.rights_status), item.doi, formatDate(item.created_at)])], csv = rows.map(row => row.map(value => `"${String(value || "").replaceAll('"', '""')}"`).join(",")).join("\n"), url = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" })), link = window.document.createElement("a"); link.href = url; link.download = `documents-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url); showToast("Current document view exported"); };
+const showToast = message => { window.clearTimeout(toastTimer); toastMessage.value = message; toastTimer = window.setTimeout(() => toastMessage.value = "", 3200); };
+const handleKeydown = event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); searchInput.value?.focus(); } if (event.key === "Escape") deleteDialog.open ? closeDeleteDialog() : previewDocument.value ? closeDrawer() : activeMenuId.value = null; };
+const closeMenuOnResize = () => activeMenuId.value = null;
+onMounted(async () => { window.addEventListener("keydown", handleKeydown); window.addEventListener("resize", closeMenuOnResize); try { const [sources, categories, documentTypes, languages, licenseTypes, rightsStatuses] = await Promise.all([fetchLookup("sources"), fetchLookup("categories"), fetchLookup("document-types"), fetchLookup("languages"), fetchLookup("license-types"), fetchLookup("rights-statuses")]); Object.assign(lookups, { sources, categories, documentTypes, languages, licenseTypes, rightsStatuses }); } catch (error) { errorMessage.value = error.response?.data?.message || "Some filter options could not be loaded."; } await loadDocuments(); });
+onBeforeUnmount(() => { window.removeEventListener("keydown", handleKeydown); window.removeEventListener("resize", closeMenuOnResize); window.document.body.classList.remove("drawer-open"); window.clearTimeout(toastTimer); });
 </script>
 
 <style scoped>
-.documents-list { color: #172033; }
-.documents-list__header { margin-bottom: 1.3rem; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.documents-list__header > div > span { color: #2563eb; font-size: .72rem; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
-.documents-list__header h2 { margin: .2rem 0; font-size: 1.75rem; font-weight: 780; }
-.documents-list__header p { margin: 0; color: #64748b; font-size: .86rem; }
-.documents-list__add { min-height: 42px; padding: .62rem .9rem; border-radius: 9px; color: #fff; background: #2563eb; display: inline-flex; align-items: center; gap: .45rem; font-size: .85rem; font-weight: 700; text-decoration: none; }
-.documents-filters { margin-bottom: 1rem; padding: .9rem; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; display: grid; grid-template-columns: repeat(4, minmax(145px, 1fr)); gap: .6rem; }
-.documents-filters input, .documents-filters select { width: 100%; min-height: 40px; padding: .5rem .65rem; border: 1px solid #cbd5e1; border-radius: 8px; outline: 0; color: #334155; background: #fff; font-size: .78rem; }
-.documents-filters__search { position: relative; grid-column: span 2; }
-.documents-filters__search i { position: absolute; top: 50%; left: .7rem; color: #94a3b8; transform: translateY(-50%); }
-.documents-filters__search input { padding-left: 2rem; }
-.documents-filters button { padding: .5rem .8rem; border: 0; border-radius: 8px; color: #fff; background: #2563eb; font-size: .8rem; font-weight: 700; }
-.documents-list__error { margin-bottom: 1rem; padding: .75rem; border: 1px solid #fecaca; border-radius: 8px; color: #b91c1c; background: #fef2f2; font-size: .82rem; }
-.documents-table-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow-x: auto; background: #fff; }
-.documents-table { width: 100%; min-width: 1350px; border-collapse: collapse; }
-.documents-table th { padding: .75rem; border-bottom: 1px solid #e2e8f0; color: #64748b; background: #f8fafc; font-size: .7rem; letter-spacing: .04em; text-align: left; text-transform: uppercase; }
-.documents-table td { max-width: 190px; padding: .8rem .75rem; border-bottom: 1px solid #eef2f7; color: #334155; font-size: .78rem; vertical-align: top; }
-.documents-table tr:last-child td { border-bottom: 0; }
-.documents-table td strong, .documents-table td small { display: block; }
-.documents-table td strong { color: #172033; }
-.documents-table__authors { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.documents-table__drive-link { margin-top: .25rem; display: inline-block; color: #2563eb; font-size: .72rem; text-decoration: none; }
-.documents-table__url { max-width: 190px; display: block; overflow: hidden; color: #2563eb; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
-.documents-table__state { height: 150px; color: #64748b !important; text-align: center !important; vertical-align: middle !important; }
-.documents-pagination { padding: 1rem .2rem; display: flex; justify-content: space-between; align-items: center; color: #64748b; font-size: .78rem; }
-.documents-pagination div { display: flex; gap: .45rem; }
-.documents-pagination button { padding: .45rem .7rem; border: 1px solid #cbd5e1; border-radius: 7px; color: #334155; background: #fff; font-size: .76rem; }
-.documents-pagination button:disabled { color: #94a3b8; background: #f1f5f9; }
-@media (max-width: 1100px) { .documents-filters { grid-template-columns: repeat(3, 1fr); } .documents-filters__search { grid-column: 1 / -1; } }
-@media (max-width: 650px) { .documents-list__header { flex-direction: column; } .documents-filters { grid-template-columns: 1fr; } .documents-filters__search { grid-column: auto; } .documents-pagination { align-items: flex-start; flex-direction: column; gap: .65rem; } }
+.documents-page{--ink:#101828;--muted:#667085;--border:#e4e7ec;--blue:#175cd3;color:var(--ink);font-family:Inter,"Instrument Sans",system-ui,sans-serif}
+:global(body.drawer-open){overflow:hidden}
+button,select,input{font:inherit}.page-header{margin-bottom:1.5rem;display:flex;align-items:flex-start;justify-content:space-between;gap:2rem}.eyebrow{margin-bottom:.52rem;display:flex;align-items:center;gap:.42rem;color:#175cd3;font-size:.67rem;font-weight:750;letter-spacing:.1em;text-transform:uppercase}.eyebrow i{color:#98a2b3;font-size:.5rem}.eyebrow span:last-child{color:#667085}.title-line{display:flex;align-items:center;gap:.65rem}.page-header h2{margin:0;font-size:clamp(1.8rem,2.5vw,2.15rem);font-weight:730;letter-spacing:-.04em;line-height:1.15}.page-header p{margin:.5rem 0 0;color:var(--muted);font-size:.86rem}.count{padding:.18rem .5rem;border:1px solid #d0d5dd;border-radius:999px;color:#475467;background:#fff;font-size:.69rem;font-weight:700}.header-actions{display:flex;gap:.5rem;flex:0 0 auto}
+.btn-ui{min-height:40px;padding:.57rem .8rem;border:1px solid transparent;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:.42rem;font-size:.77rem;font-weight:680;line-height:1;text-decoration:none;transition:.16s}.btn-ui:hover:not(:disabled){transform:translateY(-1px)}.btn-ui:disabled{cursor:not-allowed;opacity:.52}.btn-primary{border-color:#175cd3;color:#fff;background:#175cd3;box-shadow:0 1px 2px #10182814,inset 0 -1px #00000018}.btn-primary:hover{color:#fff;background:#1849a9}.btn-secondary{border-color:#d0d5dd;color:#344054;background:#fff;box-shadow:0 1px 2px #1018280a}.btn-secondary:hover:not(:disabled){border-color:#b8c0cc;color:#101828;background:#f9fafb}.btn-danger{border-color:#d92d20;color:#fff;background:#d92d20}
+.toolbar-card,.table-card{border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 1px 2px #10182808,0 5px 16px #10182808}.toolbar-card{margin-bottom:1rem;padding:.85rem}.search-row{display:flex;gap:.5rem}.search-field{min-width:260px;height:42px;padding:0 .7rem;border:1px solid #d0d5dd;border-radius:9px;display:flex;align-items:center;gap:.58rem;flex:1;box-shadow:0 1px 2px #10182808;transition:.15s}.search-field:focus-within{border-color:#84adff;box-shadow:0 0 0 3px #eaf2ff}.search-field>i{color:#667085}.search-field input{min-width:0;height:100%;border:0;outline:0;flex:1;color:#101828;background:transparent;font-size:.8rem}.search-field input::placeholder{color:#98a2b3}.search-field kbd{padding:.14rem .36rem;border:1px solid #d0d5dd;border-bottom-width:2px;border-radius:5px;color:#667085;background:#f9fafb;font-family:inherit;font-size:.61rem;white-space:nowrap}.search-submit{min-width:76px}.filter-toggle span{min-width:18px;height:18px;border-radius:999px;display:grid;place-items:center;color:#175cd3;background:#eff4ff;font-size:.62rem}
+.quick-filters{padding-top:.7rem;display:flex;align-items:center;gap:.4rem;overflow-x:auto;scrollbar-width:none}.quick-filters::-webkit-scrollbar{display:none}.select-chip,.sort-control{height:34px;padding:0 .28rem 0 .62rem;border:1px solid #d0d5dd;border-radius:8px;display:flex;align-items:center;gap:.3rem;flex:0 0 auto;color:#475467;background:#fff;font-size:.69rem;font-weight:650}.select-chip:focus-within,.sort-control:focus-within{border-color:#84adff;box-shadow:0 0 0 2px #eaf2ff}.select-chip select,.sort-control select{max-width:128px;height:100%;padding:0 1rem 0 .08rem;border:0;outline:0;appearance:none;color:#101828;background:transparent;font-size:.7rem}.select-chip>i,.sort-control>i{margin-left:-.85rem;color:#667085;font-size:.55rem;pointer-events:none}.divider{width:1px;height:23px;margin:0 .18rem;background:#e4e7ec}.sort-control{margin-left:auto;border-color:transparent;background:#f9fafb}.sort-control>span{color:#98a2b3;font-weight:550}
+.advanced-panel{margin-top:.72rem;padding:.85rem;border:1px solid #e4e7ec;border-radius:10px;background:#f9fafb;transform-origin:top}.advanced-grid{display:grid;grid-template-columns:repeat(4,minmax(145px,1fr));gap:.72rem}.field{display:flex;flex-direction:column;gap:.34rem;color:#344054;font-size:.7rem;font-weight:650}.field input,.field select{width:100%;height:39px;padding:0 .62rem;border:1px solid #d0d5dd;border-radius:8px;outline:0;color:#101828;background:#fff;font-size:.76rem;font-weight:450}.field input:focus,.field select:focus{border-color:#84adff;box-shadow:0 0 0 3px #eaf2ff}.advanced-footer{margin-top:.65rem;display:flex;align-items:center;justify-content:space-between;color:#98a2b3;font-size:.67rem}.text-btn{padding:.28rem;border:0;color:#175cd3;background:transparent;display:inline-flex;align-items:center;gap:.32rem;font-size:.71rem;font-weight:680}.text-btn:hover{color:#1849a9}.filter-meta{margin-top:.72rem;padding-top:.68rem;border-top:1px solid #f0f1f3;display:flex;justify-content:space-between;gap:1rem}.active-tags,.saved-actions{display:flex;align-items:center;gap:.38rem;flex-wrap:wrap}.active-tag{height:27px;padding:0 .23rem 0 .52rem;border:1px solid #b2ccff;border-radius:999px;color:#1849a9;background:#eff4ff;display:inline-flex;align-items:center;gap:.23rem;font-size:.66rem;font-weight:600}.active-tag span{color:#5280c9;font-weight:500}.active-tag i{font-size:.87rem}.clear-btn{padding:.24rem .32rem;border:0;color:#667085;background:transparent;font-size:.67rem;font-weight:600}.clear-btn:hover,.danger-text{color:#b42318!important}
+.error-state{margin-bottom:1rem;padding:.78rem 1rem;border:1px solid #fecdca;border-radius:10px;color:#912018;background:#fff4f3;display:flex;align-items:center;gap:.72rem;font-size:.76rem}.error-state>span{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;flex:0 0 auto;background:#fee4e2}.error-state>div{flex:1}.error-state strong{display:block;color:#7a271a}.error-state p{margin:.08rem 0 0}.table-card{overflow:hidden}.table-topbar{min-height:54px;padding:.62rem .88rem;border-bottom:1px solid #e4e7ec;display:flex;align-items:center;justify-content:space-between;gap:1rem}.table-topbar>div:first-child strong,.table-topbar>div:first-child small{display:block}.table-topbar strong{font-size:.8rem}.table-topbar small{margin-top:.08rem;color:#98a2b3;font-size:.65rem}.table-actions{display:flex;align-items:center;gap:.42rem}.icon-btn,.row-menu-btn{width:34px;height:34px;padding:0;border:1px solid #e4e7ec;border-radius:8px;color:#667085;background:#fff;display:grid;place-items:center}.icon-btn:hover:not(:disabled),.row-menu-btn:hover,.row-menu-btn.active{color:#344054;background:#f2f4f7}.bulk-actions{height:36px;padding:.24rem .32rem .24rem .68rem;border:1px solid #b2ccff;border-radius:9px;display:flex;align-items:center;gap:.22rem;color:#344054;background:#f5f8ff;box-shadow:0 2px 5px #1018280f}.bulk-actions>span{padding-right:.4rem;font-size:.67rem}.bulk-actions button{height:27px;padding:0 .42rem;border:0;border-radius:6px;color:#344054;background:transparent;font-size:.67rem;font-weight:650}.bulk-actions button:hover{background:#fff}
+.table-scroll{overflow-x:auto}.documents-table{width:100%;min-width:1120px;table-layout:fixed;border-collapse:collapse}.col-check{width:46px}.col-document{width:30%}.col-source{width:14%}.col-type{width:12%}.col-author{width:14%}.col-rights{width:18%}.col-doi{width:12%}.col-actions{width:54px}.documents-table th{height:42px;padding:0 .68rem;border-bottom:1px solid #e4e7ec;color:#667085;background:#fcfcfd;font-size:.63rem;font-weight:680;letter-spacing:.045em;text-align:left;text-transform:uppercase}.documents-table td{height:78px;padding:.7rem .68rem;border-bottom:1px solid #eaecf0;color:#344054;font-size:.73rem;vertical-align:middle}.documents-table tbody:last-child tr:last-child td{border-bottom:0}.document-row{cursor:pointer;outline:0;transition:.14s}.document-row:hover{background:#f8faff;box-shadow:inset 3px 0 #84adff}.document-row:focus-visible{box-shadow:inset 0 0 0 2px #84adff}.document-row.selected{background:#f5f8ff}.checkbox-cell{padding-left:.92rem!important;padding-right:.22rem!important;text-align:center!important}input[type=checkbox]{width:15px;height:15px;border-radius:4px;accent-color:#175cd3;cursor:pointer}
+.document-cell{min-width:0;display:flex;align-items:center;gap:.68rem}.file-icon{position:relative;width:38px;height:42px;border-radius:8px;display:grid;place-items:center;flex:0 0 auto;color:#d92d20;background:#fef3f2;font-size:1.14rem}.file-icon small{position:absolute;right:-3px;bottom:2px;padding:1px 3px;border-radius:3px;color:#fff;background:#d92d20;font-size:.4rem;font-weight:800}.file-docx{color:#175cd3;background:#eff4ff}.file-docx small{background:#175cd3}.file-pptx{color:#c4320a;background:#fff4ed}.file-pptx small{background:#c4320a}.file-txt,.file-file{color:#475467;background:#f2f4f7}.file-txt small,.file-file small{background:#475467}.document-info{min-width:0;flex:1}.document-name{min-width:0;display:flex;align-items:center;gap:.3rem}.document-name strong{overflow:hidden;flex:1;color:#101828;font-size:.76rem;font-weight:660;text-overflow:ellipsis;white-space:nowrap}.document-name button{width:26px;height:26px;padding:0;border:0;border-radius:6px;color:#667085;background:transparent;display:grid;place-items:center;opacity:0}.document-row:hover .document-name button,.document-name button:focus{opacity:1}.document-name button:hover{color:#175cd3;background:#eff4ff}.document-meta{margin-top:.27rem;display:flex;align-items:center;gap:.33rem;color:#98a2b3;font-size:.61rem;white-space:nowrap}.document-meta b{font-weight:400}
+.source-badge{max-width:100%;display:flex;align-items:center;gap:.42rem;overflow:hidden;font-weight:580;text-overflow:ellipsis;white-space:nowrap}.source-badge b{width:25px;height:25px;border:1px solid #dbe4f3;border-radius:7px;display:grid;place-items:center;flex:0 0 auto;color:#175cd3;background:#f3f7fd;font-size:.53rem}.type-badge,.license-badge{max-width:100%;padding:.23rem .43rem;border-radius:6px;display:inline-flex;align-items:center;overflow:hidden;font-size:.63rem;font-weight:650;text-overflow:ellipsis;white-space:nowrap}.type-badge.blue{color:#1849a9;background:#eff4ff}.type-badge.violet{color:#5925dc;background:#f4f3ff}.type-badge.amber{color:#b54708;background:#fffaeb}.type-badge.green{color:#027a48;background:#ecfdf3}.type-badge.gray,.license-badge{color:#475467;background:#f2f4f7}.truncate{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rights-cell{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:.33rem}.license-badge i{margin-right:.28rem}.rights-status{max-width:100%;display:flex;align-items:center;gap:.33rem;overflow:hidden;color:#667085;font-size:.61rem;text-overflow:ellipsis;white-space:nowrap}.rights-status>i{width:6px;height:6px;border-radius:50%;flex:0 0 auto;background:#98a2b3}.rights-status.open{color:#027a48}.rights-status.open>i{background:#12b76a;box-shadow:0 0 0 3px #d1fadf}.rights-status.restricted{color:#b54708}.rights-status.restricted>i{background:#f79009;box-shadow:0 0 0 3px #fef0c7}.doi-link{display:flex;align-items:center;gap:.23rem;overflow:hidden;color:#175cd3;font-weight:580;text-decoration:none;text-overflow:ellipsis;white-space:nowrap}.doi-link:hover{text-decoration:underline}.doi-link i{font-size:.61rem}.muted{color:#98a2b3}.actions-cell{padding-left:.3rem!important;padding-right:.62rem!important;text-align:right}.row-menu-btn{border-color:transparent}
+.skeleton-row td{pointer-events:none}.skeleton{border-radius:5px;display:block;background:linear-gradient(90deg,#f2f4f7 25%,#e7eaf0 50%,#f2f4f7 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}.sk-check{width:15px;height:15px}.sk-icon{width:38px;height:42px;border-radius:8px}.sk-wide{width:78%;height:10px}.sk-medium{width:58%;height:9px;margin-top:8px}.sk-tag{width:70px;height:23px}.sk-document{display:flex;align-items:center;gap:.68rem}.sk-document>div{flex:1}
+.empty-state{min-height:380px;padding:3rem 1rem;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center}.empty-illustration{position:relative;width:128px;height:110px;margin-bottom:1rem}.sheet{position:absolute;width:64px;height:80px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;box-shadow:0 6px 16px #10182814}.sheet.back{top:6px;left:23px;transform:rotate(-8deg);background:#f9fafb}.sheet.front{top:4px;left:36px;padding:13px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;color:#175cd3;transform:rotate(4deg)}.sheet.front b{width:36px;height:3px;border-radius:3px;background:#d0d5dd}.sheet.front b:last-child{width:24px}.search-dot{position:absolute;right:14px;bottom:9px;width:42px;height:42px;border:5px solid #fff;border-radius:50%;display:grid;place-items:center;color:#fff;background:#175cd3;box-shadow:0 5px 12px #175cd340}.empty-state h3{margin:0;font-size:1rem}.empty-state p{max-width:410px;margin:.42rem 0 1rem;color:#667085;font-size:.76rem;line-height:1.6}
+.pagination-ui{min-height:62px;padding:.72rem .88rem;border-top:1px solid #e4e7ec;display:flex;align-items:center;justify-content:space-between;gap:1rem;color:#667085;font-size:.69rem}.pagination-summary,.pagination-summary label,.pagination-controls{display:flex;align-items:center;gap:.48rem}.pagination-summary{gap:1.2rem}.pagination-summary b{color:#344054}.pagination-ui select{height:31px;padding:0 1.5rem 0 .48rem;border:1px solid #d0d5dd;border-radius:7px;color:#344054;background:#fff;font-size:.68rem}.pagination-controls{gap:.23rem}.pagination-controls button{min-width:32px;height:32px;padding:0 .48rem;border:1px solid transparent;border-radius:7px;color:#475467;background:transparent;font-size:.69rem;font-weight:620}.pagination-controls button:first-child,.pagination-controls button:last-child{border-color:#d0d5dd;background:#fff;display:flex;align-items:center;gap:.28rem}.pagination-controls button:hover:not(:disabled){background:#f2f4f7}.pagination-controls button.active{color:#175cd3;background:#eff4ff}.pagination-controls button:disabled{cursor:not-allowed;opacity:.4}
+.row-menu{position:fixed;z-index:1500;width:210px;padding:.34rem;border:1px solid #e4e7ec;border-radius:10px;background:#fff;box-shadow:0 14px 34px #10182826}.row-menu button,.row-menu a{width:100%;min-height:35px;padding:.43rem .58rem;border:0;border-radius:7px;color:#344054;background:transparent;display:flex;align-items:center;gap:.52rem;font-size:.73rem;font-weight:560;text-align:left;text-decoration:none}.row-menu button:hover,.row-menu a:hover{color:#101828;background:#f2f4f7}.row-menu i{width:16px;color:#667085}.row-menu hr{height:1px;margin:.28rem -.34rem;border:0;background:#eaecf0}
+.drawer-layer,.modal-layer{position:fixed;inset:0;z-index:1600}.overlay{position:absolute;inset:0;width:100%;height:100%;border:0;background:#1018285c;backdrop-filter:blur(1px)}.document-drawer{position:absolute;top:0;right:0;width:min(560px,94vw);height:100%;display:flex;flex-direction:column;background:#fff;box-shadow:-18px 0 45px #10182824}.drawer-header{min-height:76px;padding:1rem 1.1rem 1rem 1.25rem;border-bottom:1px solid #e4e7ec;display:flex;align-items:center;justify-content:space-between;gap:1rem}.drawer-header>div{min-width:0}.drawer-header span{color:#175cd3;font-size:.6rem;font-weight:720;letter-spacing:.08em;text-transform:uppercase}.drawer-header h3{margin:.23rem 0 0;overflow:hidden;font-size:.9rem;font-weight:680;text-overflow:ellipsis;white-space:nowrap}.preview-area{min-height:255px;height:34vh;padding:.78rem;border-bottom:1px solid #e4e7ec;background:#f2f4f7}.preview-area iframe{width:100%;height:100%;border:1px solid #d0d5dd;border-radius:8px;background:#fff}.preview-fallback{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#667085;text-align:center}.file-icon.large{width:54px;height:61px;margin-bottom:.68rem;font-size:1.5rem}.preview-fallback strong{font-size:.82rem}.preview-fallback p{margin:.23rem 0 .72rem;font-size:.68rem}.drawer-content{padding:1.12rem 1.25rem;overflow-y:auto;flex:1}.drawer-heading{margin-bottom:1rem;display:flex;align-items:flex-start;justify-content:space-between}.drawer-heading strong{font-size:.8rem}.drawer-heading p{margin:.08rem 0 0;color:#98a2b3;font-size:.64rem}.metadata-grid{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:.82rem 1.2rem}.metadata-grid .wide{grid-column:1/-1}.metadata-grid dt{margin-bottom:.18rem;color:#98a2b3;font-size:.6rem;font-weight:620;text-transform:uppercase}.metadata-grid dd{margin:0;overflow-wrap:anywhere;color:#344054;font-size:.73rem;line-height:1.45}.rights-card{margin-top:1.05rem;padding:.78rem;border:1px solid #d1fadf;border-radius:9px;display:flex;gap:.68rem;background:#f6fef9}.rights-card>span{width:31px;height:31px;border-radius:8px;display:grid;place-items:center;flex:0 0 auto;color:#027a48;background:#d1fadf}.rights-card small,.rights-card strong{display:block}.rights-card small{color:#039855;font-size:.59rem;font-weight:650;text-transform:uppercase}.rights-card strong{margin-top:.1rem;color:#05603a;font-size:.73rem}.rights-card p{margin:.1rem 0 0;color:#027a48;font-size:.64rem}.drawer-footer{min-height:64px;padding:.68rem 1.1rem;border-top:1px solid #e4e7ec;display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.edit-form{padding:1.15rem 1.25rem;display:grid;grid-template-columns:1fr 1fr;align-content:start;gap:.85rem;overflow-y:auto;flex:1}.edit-form .wide,.edit-error,.edit-footer{grid-column:1/-1}.edit-error{margin:0;padding:.62rem;border-radius:7px;color:#b42318;background:#fef3f2;font-size:.7rem}.edit-footer{margin:.3rem -1.25rem -1.15rem;padding:.72rem 1.25rem;border-top:1px solid #e4e7ec;display:flex;justify-content:flex-end;gap:.52rem}.modal-layer{display:grid;place-items:center}.confirm-dialog{position:relative;width:min(420px,calc(100vw - 2rem));padding:1.25rem;border:1px solid #e4e7ec;border-radius:14px;background:#fff;box-shadow:0 24px 60px #10182833}.delete-icon{width:42px;height:42px;margin-bottom:.85rem;border:7px solid #fef3f2;border-radius:50%;display:grid;place-items:center;color:#d92d20;background:#fee4e2}.confirm-dialog h3{margin:0;font-size:1rem;font-weight:700}.confirm-dialog p{margin:.42rem 0 1.15rem;color:#667085;font-size:.74rem;line-height:1.55}.confirm-dialog>div{display:flex;justify-content:flex-end;gap:.52rem}.toast-ui{position:fixed;right:1.5rem;bottom:1.5rem;z-index:1800;padding:.72rem .95rem;border:1px solid #a6f4c5;border-radius:9px;color:#05603a;background:#ecfdf3;display:flex;align-items:center;gap:.48rem;font-size:.74rem;font-weight:620;box-shadow:0 10px 25px #1018281f}.toast-ui i{color:#12b76a}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.spin{animation:spin .8s linear infinite}.filter-panel-enter-active,.filter-panel-leave-active{transition:.18s}.filter-panel-enter-from,.filter-panel-leave-to{opacity:0;transform:translateY(-5px) scaleY(.96)}.bulk-enter-active,.bulk-leave-active{transition:.15s}.bulk-enter-from,.bulk-leave-to{opacity:0;transform:translateX(8px)}.menu-pop-enter-active,.menu-pop-leave-active{transition:.12s;transform-origin:top right}.menu-pop-enter-from,.menu-pop-leave-to{opacity:0;transform:scale(.96)}.drawer-enter-active,.drawer-leave-active{transition:opacity .22s}.drawer-enter-active .document-drawer,.drawer-leave-active .document-drawer{transition:transform .24s}.drawer-enter-from,.drawer-leave-to{opacity:0}.drawer-enter-from .document-drawer,.drawer-leave-to .document-drawer{transform:translateX(100%)}.modal-enter-active,.modal-leave-active{transition:.18s}.modal-enter-from,.modal-leave-to{opacity:0}.toast-enter-active,.toast-leave-active{transition:.18s}.toast-enter-from,.toast-leave-to{opacity:0;transform:translateY(8px)}
+@keyframes shimmer{to{background-position:-200% 0}}@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:1180px){.desktop-action{display:none}.advanced-grid{grid-template-columns:repeat(2,1fr)}.documents-table{min-width:1060px}}
+@media(max-width:780px){.page-header{flex-direction:column}.header-actions{width:100%}.header-actions .btn-primary{margin-left:auto}.search-row{flex-wrap:wrap}.search-field{flex-basis:100%}.search-submit{flex:1}.divider{display:none}.sort-control{margin-left:0}.filter-meta,.pagination-ui{align-items:flex-start;flex-direction:column}.pagination-controls{width:100%;justify-content:space-between}}
+@media(max-width:560px){.advanced-grid,.edit-form{grid-template-columns:1fr}.page-header p{line-height:1.5}.pagination-summary{width:100%;justify-content:space-between}.pagination-controls button span{display:none}.bulk-actions>span{display:none}}
 </style>

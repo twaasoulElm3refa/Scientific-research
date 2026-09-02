@@ -304,6 +304,53 @@ class AdminDocumentManagementTest extends TestCase
             ->assertJsonPath('meta.total', 1);
     }
 
+    public function test_admin_can_filter_update_and_delete_a_document(): void
+    {
+        [$admin, $payload, $relations] = $this->validPayload();
+        $token = $admin->createToken('manage')->plainTextToken;
+
+        $this->withToken($token)
+            ->post('/api/admin/documents', $payload, ['Accept' => 'application/json'])
+            ->assertCreated();
+
+        $document = Document::firstOrFail();
+
+        $this->withToken($token)
+            ->getJson('/api/admin/documents?publication_year=2026')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+
+        $this->withToken($token)
+            ->getJson('/api/admin/documents?publication_year=2025')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+
+        $this->withToken($token)
+            ->patchJson('/api/admin/documents/'.$document->id, [
+                'title' => 'Updated Research Document',
+                'source_id' => $relations['source']->id,
+                'document_type_id' => $relations['documentType']->id,
+                'category_id' => $relations['category']->id,
+                'language_id' => $relations['language']->id,
+                'license_type_id' => $relations['licenseType']->id,
+                'rights_status_id' => $relations['rightsStatus']->id,
+                'doi' => '10.1234/updated-document',
+                'publish_year' => 2025,
+                'url' => 'https://example.com/updated-document',
+            ])
+            ->assertOk()
+            ->assertJsonPath('document.title', 'Updated Research Document')
+            ->assertJsonPath('document.publish_year', 2025);
+
+        $this->withToken($token)
+            ->deleteJson('/api/admin/documents/'.$document->id)
+            ->assertOk()
+            ->assertJsonPath('message', 'Document deleted successfully.');
+
+        $this->assertDatabaseCount('documents', 0);
+        $this->assertSame([$this->drive->nextFileId], $this->drive->deletedFiles);
+    }
+
     public function test_legacy_document_without_stored_file_names_keeps_a_display_name(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);

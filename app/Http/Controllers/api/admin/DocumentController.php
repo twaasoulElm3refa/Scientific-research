@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\api\admin;
 
+use App\Contracts\GoogleDrive;
 use App\Exceptions\DocumentCreationException;
+use App\Exceptions\GoogleDriveException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreDocumentRequest;
+use App\Http\Requests\Admin\UpdateDocumentRequest;
 use App\Http\Resources\DocumentResource;
 use App\Models\Document;
 use App\Services\DocumentCreationService;
@@ -28,6 +31,7 @@ class DocumentController extends Controller
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'license_type_id' => ['nullable', 'integer', 'exists:license_types,id'],
             'rights_status_id' => ['nullable', 'integer', 'exists:rights_statuses,id'],
+            'publication_year' => ['nullable', 'integer', 'between:1000,'.(now()->year + 1)],
             'sort' => ['nullable', 'in:title,publication_date,publication_year,created_at'],
             'direction' => ['nullable', 'in:asc,desc'],
             'per_page' => ['nullable', 'integer', 'between:1,100'],
@@ -84,6 +88,7 @@ class DocumentController extends Controller
             'country_id',
             'license_type_id',
             'rights_status_id',
+            'publication_year',
         ] as $filter) {
             if (isset($filters[$filter])) {
                 $query->where($filter, $filters[$filter]);
@@ -96,6 +101,46 @@ class DocumentController extends Controller
             ->withQueryString();
 
         return DocumentResource::collection($documents);
+    }
+
+    public function update(UpdateDocumentRequest $request, Document $document): JsonResponse
+    {
+        $data = $request->validated();
+        $data['publication_year'] = $data['publish_year'] ?? null;
+        unset($data['publish_year']);
+
+        if ((int) ($data['source_id'] ?? 0) !== (int) $document->source_id) {
+            $data['magazine_id'] = null;
+        }
+
+        if ((int) ($data['category_id'] ?? 0) !== (int) $document->category_id) {
+            $data['subcategory_id'] = null;
+            $data['specialization_id'] = null;
+        }
+
+        $document->update($data);
+
+        return response()->json([
+            'message' => 'Document metadata updated successfully.',
+            'document' => new DocumentResource($this->loadDocumentRelations($document->fresh())),
+        ]);
+    }
+
+    public function destroy(Document $document, GoogleDrive $drive): JsonResponse
+    {
+        try {
+            if ($document->drive_file_id) {
+                $drive->deleteFile($document->drive_file_id);
+            }
+        } catch (GoogleDriveException $exception) {
+            return response()->json([
+                'message' => 'The document could not be removed from Google Drive.',
+            ], 502);
+        }
+
+        $document->delete();
+
+        return response()->json(['message' => 'Document deleted successfully.']);
     }
 
     public function store(
@@ -118,5 +163,23 @@ class DocumentController extends Controller
                 'message' => $exception->getMessage(),
             ], $exception->httpStatus);
         }
+    }
+
+    private function loadDocumentRelations(Document $document): Document
+    {
+        return $document->load([
+            'user:id,name',
+            'source:id,name',
+            'magazine:id,name',
+            'documentType:id,name',
+            'languageRecord:id,name,code',
+            'category:id,name',
+            'subcategory:id,category_id,name',
+            'specialization:id,subcategory_id,name',
+            'country:id,name,code',
+            'licenseType:id,code,name_ar,name_en',
+            'rightsStatus:id,code,name_ar,name_en',
+            'authors:id,name',
+        ]);
     }
 }
